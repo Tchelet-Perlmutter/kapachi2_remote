@@ -1,0 +1,16 @@
+{
+  "name": "kapachi2",
+  "version": "1.0.0",
+  "description": "A simple working chat app",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "author": "Tchelet Perlmutter",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "mongoose": "^5.13.8"
+  }
+}
