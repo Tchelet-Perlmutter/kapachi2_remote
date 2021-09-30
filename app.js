@@ -1,8 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+
 const User = require("./models/usersModel");
 const Message = require("./models/messagesModel");
+const Conversation = require("./models/conversationsModel");
+
 const app = express();
 const port = 3000;
 
@@ -26,26 +29,6 @@ mongoose
   .catch((err) => {
     console.log(`----> Mongoose-connect's Promise Rejected because of ${err}`);
   });
-
-//////// Schemas ////////
-
-// conversation schema.
-const conversationSchema = new mongoose.Schema({
-  // messages Indexes (IDs)
-  messagesIndexesArr: {
-    type: Array,
-  },
-  //The converationalists of the conversation = their IDs
-  conversationalistsIndexesArr: {
-    type: Array,
-    required: [true, "A conversation should have conversationalists"],
-  },
-});
-
-/////// MODELS ///////
-
-// Conversation model
-const Conversation = mongoose.model("conversations", conversationSchema);
 
 /////// ROUTES /////////
 
