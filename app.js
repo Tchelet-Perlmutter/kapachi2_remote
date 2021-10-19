@@ -175,44 +175,106 @@ router1
   });
 
 // "/propertyQuery" route
-// GET document by id
-// .get((req, res) => {
-//   id = req.params.id;
-//   // Document's get query
-//   documents = collectionModel
-//     .findById(id)
-//     .then((doc) => {
-//       console.log(
-//         `----> Yay! the document with id ${id} of ${collection} collection: ${doc}`
-//       );
-//       res.send("Done");
-//     })
-//     .catch((err) => {
-//       console.log(
-//         `----> ERROR with getting the document with id ${id} of ${collection}: ${err}`
-//       );
-//       res.send(`${err}`);
-//     });
-// })
-// // Delete document by id
-// .delete((req, res) => {
-//   id = req.params.id;
-//   // Document's delliting query
-//   document = collectionModel
-//     .findByIdAndDelete(id)
-//     .then(() => {
-//       console.log(
-//         `----> Yay! The document with id ${id} of ${collection} collection was deleted`
-//       );
-//       res.send("Done");
-//     })
-//     .catch((err) => {
-//       console.log(
-//         `----> ERROR with deliting the document with id ${id} of ${collection}: ${err}`
-//       );
-//       res.send(`${err}`);
-//     });
-// });
+router1
+  .route("/propertyQuery")
+  //GET document by property
+  .get((req, res) => {
+    let propertyQuery = req.query;
+    let conditionVal = "";
+    console.log(JSON.stringify(propertyQuery));
+
+    Object.values(propertyQuery).forEach((fieldVal) => {
+      console.log(JSON.stringify(fieldVal));
+      if (typeof fieldVal === "object") {
+        Object.keys(fieldVal).forEach((queryCondition) => {
+          fixedQueryCondition = `$${queryCondition}`;
+          conditionVal = propertyQuery[queryCondition];
+
+          fieldVal[fixedQueryCondition] = fieldVal[queryCondition];
+          delete fieldVal[queryCondition];
+
+          console.log(JSON.stringify(fieldVal));
+          console.log(`fixedQueryCondition: ${fixedQueryCondition}`);
+          console.log(`fieldVal[queryCondition]: ${fieldVal[queryCondition]}`);
+          console.log(`queryCondition: ${queryCondition}`);
+
+          // queryCondition.replace(/\b(gt|gte|lt|lte|eq|ne)\b/g, (match) => `$${match}`);
+        });
+      }
+    });
+
+    // Converting key values which are _ids, to an objectID type so that it could be searchable in the find() function
+    Object.keys(propertyQuery).forEach((key) => {
+      if (
+        (key == "conversationsArr") |
+        "conversationalistsArr" |
+        "messagesArr"
+      ) {
+        const keyValue = propertyQuery[key];
+        const objedVal = mongoose.Types.ObjectId(keyValue);
+        propertyQuery.conversationsArr = objedVal;
+      }
+    });
+
+    // Document's get query
+    documents = collectionModel
+      .find(propertyQuery)
+      .then((doc) => {
+        console.log(
+          `----> Yay! Here are the documents that fit the query ${JSON.stringify(
+            propertyQuery
+          )} of ${collection} collection: ${doc}`
+        );
+        res.send("Done");
+      })
+      .catch((err) => {
+        console.log(
+          `----> ERROR with getting the documents that feet the property query: ${propertyQuery} of ${collection}: ${err}`
+        );
+        res.send(`${err}`);
+      });
+  })
+  // Delete document by property query
+  .delete((req, res) => {
+    propertyQuery = req.params.propertyQuery;
+    // Document's delliting query
+    document = collectionModel
+      .findByIdAndDelete(propertyQuery)
+      .then((propertyQuery) => {
+        console.log(
+          `----> Yay! The documents that feet the propertyQuery ${propertyQuery} of ${collection} collection was deleted`
+        );
+        res.send("Done");
+      })
+      .catch((err) => {
+        console.log(
+          `----> ERROR with deliting the document that feet the propertyQuery ${propertyQuery} of ${collection}: ${err}`
+        );
+        res.send(`${err}`);
+      });
+  })
+  .patch((req, res) => {
+    propertyQuery = req.params.propertyQuery;
+    const update = req.body;
+    // Document creation
+    document = collectionModel
+      .findOneAndUpdate(id, update, {
+        new: true,
+        runValidators: true,
+      })
+      .then((doc) => {
+        console.log(
+          `----> Yay! The updated ${collection} document that feet the propertyQuery ${propertyQuery} of ${collection}: ${doc}`
+        );
+        res.send("Done");
+      })
+      .catch((err) => {
+        console.log(
+          `----> ERROR with updating a ${collection} document that feet the propertyQuery ${propertyQuery}: ${err}`
+        );
+        res.send(`${err}`);
+      });
+  });
 
 ////////// CONTROLERS ///////////
 
