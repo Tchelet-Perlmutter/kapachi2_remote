@@ -154,12 +154,12 @@ router1
   // Delete document by id
   .delete((req, res) => {
     id = req.params.id;
-    // Delete the document id from it's array in other collection
 
     // Document's delliting query
     document = collectionModel
       .findByIdAndDelete(id)
       .then((doc) => {
+        // Delete the document id from it's array in other collection
         deleteIndexFromArray(doc);
         console.log(
           `----> Yay! The document with id ${doc.id} of ${collection} collection was deleted`
@@ -181,40 +181,9 @@ router1
   .get((req, res) => {
     let propertyQuery = req.query;
     let conditionVal = "";
-    console.log(JSON.stringify(propertyQuery));
 
-    Object.values(propertyQuery).forEach((fieldVal) => {
-      console.log(JSON.stringify(fieldVal));
-      if (typeof fieldVal === "object") {
-        Object.keys(fieldVal).forEach((queryCondition) => {
-          fixedQueryCondition = `$${queryCondition}`;
-          conditionVal = propertyQuery[queryCondition];
-
-          fieldVal[fixedQueryCondition] = fieldVal[queryCondition];
-          delete fieldVal[queryCondition];
-
-          console.log(JSON.stringify(fieldVal));
-          console.log(`fixedQueryCondition: ${fixedQueryCondition}`);
-          console.log(`fieldVal[queryCondition]: ${fieldVal[queryCondition]}`);
-          console.log(`queryCondition: ${queryCondition}`);
-
-          // queryCondition.replace(/\b(gt|gte|lt|lte|eq|ne)\b/g, (match) => `$${match}`);
-        });
-      }
-    });
-
-    // Converting key values which are _ids, to an objectID type so that it could be searchable in the find() function
-    Object.keys(propertyQuery).forEach((key) => {
-      if (
-        (key == "conversationsArr") |
-        "conversationalistsArr" |
-        "messagesArr"
-      ) {
-        const keyValue = propertyQuery[key];
-        const objedVal = mongoose.Types.ObjectId(keyValue);
-        propertyQuery.conversationsArr = objedVal;
-      }
-    });
+    propertyQuery = adjustQueryConditions(propertyQuery);
+    propertyQuery = adjustQueryIdsArrays(propertyQuery);
 
     // Document's get query
     documents = collectionModel
@@ -236,13 +205,22 @@ router1
   })
   // Delete document by property query
   .delete((req, res) => {
-    propertyQuery = req.params.propertyQuery;
+    propertyQuery = req.query;
+
+    propertyQuery = adjustQueryConditions(propertyQuery);
+    propertyQuery = adjustQueryIdsArrays(propertyQuery);
+
+    console.log(
+      `typeof propertyQuery: ${typeof propertyQuery.conversationsArr}`
+    );
     // Document's delliting query
     document = collectionModel
-      .findByIdAndDelete(propertyQuery)
-      .then((propertyQuery) => {
+      .deleteMany(propertyQuery)
+      .then((doc) => {
         console.log(
-          `----> Yay! The documents that feet the propertyQuery ${propertyQuery} of ${collection} collection was deleted`
+          `----> Yay! The documents that feet the propertyQuery ${JSON.stringify(
+            propertyQuery
+          )} of ${collection} collection was deleted: ${JSON.stringify(doc)}`
         );
         res.send("Done");
       })
@@ -254,17 +232,23 @@ router1
       });
   })
   .patch((req, res) => {
-    propertyQuery = req.params.propertyQuery;
+    propertyQuery = req.query;
     const update = req.body;
+
+    propertyQuery = adjustQueryConditions(propertyQuery);
+    propertyQuery = adjustQueryIdsArrays(propertyQuery);
+
     // Document creation
     document = collectionModel
-      .findOneAndUpdate(id, update, {
+      .findOneAndUpdate(propertyQuery, update, {
         new: true,
         runValidators: true,
       })
       .then((doc) => {
         console.log(
-          `----> Yay! The updated ${collection} document that feet the propertyQuery ${propertyQuery} of ${collection}: ${doc}`
+          `----> Yay! The updated ${collection} document that feet the propertyQuery ${JSON.stringify(
+            propertyQuery
+          )} of ${collection}: ${doc}`
         );
         res.send("Done");
       })
@@ -277,6 +261,43 @@ router1
   });
 
 ////////// CONTROLERS ///////////
+
+/**
+ * @param {propertyQuery} req.query
+ * @returns {propertyQuery} propertyQuery after modified
+ * Converting key values which are _ids, to an objectID type so that it could be searchable in the find() function
+ */
+function adjustQueryIdsArrays(propertyQuery) {
+  //console.log(`propertyQuery: ${propertyQuery}`);
+  Object.keys(propertyQuery).forEach((key) => {
+    if ((key == "conversationsArr") | "conversationalistsArr" | "messagesArr") {
+      const keyValue = propertyQuery[key];
+      const objedVal = mongoose.Types.ObjectId(keyValue);
+      propertyQuery.conversationsArr = objedVal;
+    }
+  });
+  return propertyQuery;
+}
+
+/**
+ * @param {propertyQuery} req.query
+ * @returns {propertyQuery} propertyQuery after modified
+ * adding "$" sign to the condition part of the query so that it would be searchable in the find() function
+ */
+function adjustQueryConditions(propertyQuery) {
+  Object.values(propertyQuery).forEach((fieldVal) => {
+    if (typeof fieldVal === "object") {
+      Object.keys(fieldVal).forEach((queryCondition) => {
+        fixedQueryCondition = `$${queryCondition}`;
+        conditionVal = propertyQuery[queryCondition];
+
+        fieldVal[fixedQueryCondition] = fieldVal[queryCondition];
+        delete fieldVal[queryCondition];
+      });
+    }
+  });
+  return propertyQuery;
+}
 
 /**
  * Takes the newDocument and add it's _id to the property (of other collection's document) that holds the id of that type of documents
