@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const twilio = require("twilio");
 
 const User = require("./models/usersModel");
 const Message = require("./models/messagesModel");
@@ -59,7 +60,27 @@ router1
       .save()
       .then((doc) => {
         console.log(`----> Yay! The new ${collection} document: ${doc}`);
+
+        // const client = new twilio(
+        //   "AC537bd9c9a044273acc340ac22614a809",
+        //   "717aad435451c034ba3f3a06e0203dd3"
+        // );
+
+        // client.messages
+        //   .create({
+        //     body: "SMSMessage",
+        //     to: "+972506797209", // Text this number
+        //     from: "+13344589744", // From a valid Twilio number
+        //   })
+        //   .then((message) => console.log(message.sid));
+
+        //Send an SMS to the addressy about the new message he got
+        if (collectionModel == Message) {
+          youGotMessageSMS(req.body);
+        }
+
         addIndexToArray(doc);
+
         res.send("Done");
       })
       .catch((err) => {
@@ -261,6 +282,94 @@ router1
   });
 
 ////////// CONTROLERS ///////////
+
+/**
+ * @return {*} the value of the requested property of the document with the docId param
+ * @param {*} docId
+ * @param {*} reqProperty Name of requested property
+ * @param {*} collectionModel the collection model name of the docId
+ * @returns
+ */
+async function extractPropertyVal(docId, reqProperty, collectionModel) {
+  try {
+    docId = mongoose.Types.ObjectId(docId);
+
+    let reqPropertyVal = "";
+
+    await User.findById(docId).then((doc) => {
+      reqPropertyVal = doc[reqProperty];
+    });
+
+    return reqPropertyVal;
+  } catch (err) {
+    console.log(`---> extractPropertyVal error: ${err}`);
+  }
+}
+
+/**
+ * Sends an SMS to the person that got the new message
+ * @param {*} SMSMessage = The body of the message will be sent in the SMS
+ * @param {*} to = phone nember
+ * @param {*} accountSid = Your Account SID from www.twilio.com/console
+ * @param {*} authToken = Your Aut token from www.twilio.com/console
+ */
+async function youGotMessageSMS(reqBody) {
+  try {
+    const messageType = reqBody.messageType;
+    const startOfMessage = reqBody.message.substring(0, 80);
+    const seeFullMessageURL = "Some URL";
+
+    //Finding the name and phone numers of the sender and the addressy by their _id property
+
+    let addressyName = "";
+    let addressyPhone = "";
+    let senderName = "";
+    let senderPhone = "";
+    let docAddressyId = reqBody.to;
+    let docSenderId = reqBody.from;
+
+    console.log(`docSenderId: ${docSenderId}`);
+    console.log(`docAddressyId: ${docAddressyId}`);
+
+    // Names:
+
+    console.log(`===docAddressyId: ${docAddressyId}`);
+
+    senderName = await extractPropertyVal(docSenderId, "userName", "User");
+
+    console.log(`===senderName: ${senderName}`);
+
+    addressyName = await extractPropertyVal(docAddressyId, "userName", "User");
+
+    console.log(`===addressyName: ${addressyName}`);
+
+    // Phones:
+
+    addressyPhone = await extractPropertyVal(docAddressyId, "phone", "User");
+
+    console.log(`addressyPhone: ${addressyPhone}`);
+
+    let SMSMessage = `${startOfMessage}... ${addressyName}, ${senderName} sent you a ${messageType} message Threw our platform - "Kapachi". To Read his full message, enter: ${seeFullMessageURL}`;
+
+    console.log(`SMSMessage: ${SMSMessage}`);
+
+    const accountSid = "AC537bd9c9a044273acc340ac22614a809";
+    const authToken = "717aad435451c034ba3f3a06e0203dd3";
+
+    //////
+    const client = new twilio(accountSid, authToken);
+
+    client.messages
+      .create({
+        body: SMSMessage,
+        to: addressyPhone, // Text this number
+        from: "+13344589744", // From a valid Twilio number
+      })
+      .then((message) => console.log(message.sid));
+  } catch (err) {
+    console.log(`---> Error from function "youGotMesageSMS": ${err}`);
+  }
+}
 
 /**
  * @param {propertyQuery} req.query

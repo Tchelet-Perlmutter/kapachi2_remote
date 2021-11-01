@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     type: Number, // ??? When I write type Numbers, I don't need a validator for checking if he puted only numbers?
     unique: true,
   },
-  userName: {
+  name: {
     type: String,
     unique: true,
   },
