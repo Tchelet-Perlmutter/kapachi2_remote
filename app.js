@@ -61,25 +61,14 @@ router1
       .then((doc) => {
         console.log(`----> Yay! The new ${collection} document: ${doc}`);
 
-        // const client = new twilio(
-        //   "AC537bd9c9a044273acc340ac22614a809",
-        //   "717aad435451c034ba3f3a06e0203dd3"
-        // );
-
-        // client.messages
-        //   .create({
-        //     body: "SMSMessage",
-        //     to: "+972506797209", // Text this number
-        //     from: "+13344589744", // From a valid Twilio number
-        //   })
-        //   .then((message) => console.log(message.sid));
-
         //Send an SMS to the addressy about the new message he got
         if (collectionModel == Message) {
           youGotMessageSMS(req.body);
         }
 
         addIndexToArray(doc);
+
+        addKeyToSender(doc);
 
         res.send("Done");
       })
@@ -132,26 +121,9 @@ router1
   .route("/id/:id")
   // Patch - Update a document
   .patch((req, res) => {
-    id = req.params.id;
-    const update = req.body;
-    // Document creation
-    document = collectionModel
-      .findByIdAndUpdate(id, update, {
-        new: true,
-        runValidators: true,
-      })
-      .then((doc) => {
-        console.log(
-          `----> Yay! The updated ${collection} document with id ${id}: ${doc}`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with updating a ${collection} document with id ${id}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    let id = req.params.id;
+    let update = req.body;
+    patchById(id, update, res);
   })
   // GET document by id
   .get((req, res) => {
@@ -284,6 +256,55 @@ router1
 ////////// CONTROLERS ///////////
 
 /**
+ * Adding a new key to the sender of the message
+ * @param {*} newMessage The new message that entitels the sender another key
+ * @param {*} res
+ */
+async function addKeyToSender(newMessage, res) {
+  const senderId = mongoose.Types.ObjectId(newMessage.from);
+  let updatedKeyNum = "";
+  await User.findById("613ba907ebcfca14e4705541")
+    .then((doc) => {
+      updatedKeyNum = doc.keysQ + 1;
+    })
+    .catch((err) => {
+      console.log(
+        `---> ERROR from addKeyToSender function - in findBYId func: ${err.message}`
+      );
+    });
+  const update = { keysQ: updatedKeyNum };
+
+  patchById(senderId, update, res);
+}
+
+/**
+ * The function is replacing the keys that are in the update param, to the values in the update param.
+ * @param {*} id The id of the doc we want to update
+ * @param {*} update The JSON object with the update info
+ * @param {*} res In order to allow a response
+ */
+async function patchById(id, update, res) {
+  id = mongoose.Types.ObjectId(id);
+  // Document creation
+  document = User.findByIdAndUpdate(id, update, {
+    new: true,
+    runValidators: true,
+  })
+    .then((doc) => {
+      console.log(
+        `----> Yay! The updated ${collection} document with id ${id}: ${doc}`
+      );
+      res.send("Done");
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR with updating a ${collection} document with id ${id}: ${err}`
+      );
+      res.send(`${err}`);
+    });
+}
+
+/**
  * @return {*} the value of the requested property of the document with the docId param
  * @param {*} docId
  * @param {*} reqProperty Name of requested property
@@ -328,33 +349,20 @@ async function youGotMessageSMS(reqBody) {
     let docAddressyId = reqBody.to;
     let docSenderId = reqBody.from;
 
-    console.log(`docSenderId: ${docSenderId}`);
-    console.log(`docAddressyId: ${docAddressyId}`);
-
     // Names:
 
-    console.log(`===docAddressyId: ${docAddressyId}`);
+    senderName = await extractPropertyVal(docSenderId, "name", "User");
 
-    senderName = await extractPropertyVal(docSenderId, "userName", "User");
-
-    console.log(`===senderName: ${senderName}`);
-
-    addressyName = await extractPropertyVal(docAddressyId, "userName", "User");
-
-    console.log(`===addressyName: ${addressyName}`);
+    addressyName = await extractPropertyVal(docAddressyId, "name", "User");
 
     // Phones:
 
     addressyPhone = await extractPropertyVal(docAddressyId, "phone", "User");
 
-    console.log(`addressyPhone: ${addressyPhone}`);
-
     let SMSMessage = `${startOfMessage}... ${addressyName}, ${senderName} sent you a ${messageType} message Threw our platform - "Kapachi". To Read his full message, enter: ${seeFullMessageURL}`;
 
-    console.log(`SMSMessage: ${SMSMessage}`);
-
-    const accountSid = "AC537bd9c9a044273acc340ac22614a809";
-    const authToken = "717aad435451c034ba3f3a06e0203dd3";
+    const accountSid = proccess.env.ACCOUNT_SID;
+    const authToken = proccess.env.AUTH_TOKEN;
 
     //////
     const client = new twilio(accountSid, authToken);
