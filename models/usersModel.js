@@ -6,20 +6,24 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "A User must have a phone number"],
     unique: true,
-    //TODO: Add validation
     trim: true,
+    minlength: [13, "Phone property must be exactly 13 characters"],
+    maxlength: [13, "Phone property must be exactly 13 characters"],
   },
   //Conversation's array = Conversation's indexes in the db
   conversationsArr: {
     type: Array,
   },
   password: {
-    type: Number, // ??? When I write type Numbers, I don't need a validator for checking if he puted only numbers?
+    type: String,
     unique: true,
+    minlength: [8, "Password property must be 8 to 14 characters"],
+    maxlength: [14, "Password property must be 8 to 14 characters"],
   },
   name: {
     type: String,
     unique: true,
+    maxlength: [20, "MaxLength property must up to 20 characters"],
   },
   keysQ: {
     type: Number,
