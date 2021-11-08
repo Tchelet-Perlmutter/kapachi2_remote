@@ -59,12 +59,12 @@ router1
     document = new collectionModel(req.body)
       .save()
       .then((doc) => {
+        const senderId = mongoose.Types.ObjectId(req.body.from);
+
         console.log(`----> Yay! The new ${collection} document: ${doc}`);
-        console.log("1");
 
         //Send an SMS to the addressy about the new message he got and add one key to the sender and adding the addressy ID to the lastTenGiftedUsersArr array property of the sender
         if ((collectionModel == Message) & (doc.isGiftMessage == true)) {
-          const senderId = mongoose.Types.ObjectId(req.body.from);
           const addressyId = mongoose.Types.ObjectId(req.body.to);
 
           const update = { $push: { lastTenGiftedUsersArr: `${addressyId}` } };
@@ -245,7 +245,7 @@ router1
       })
       .then((doc) => {
         console.log(
-          `----> Yay! The updated ${collection} document that feet the propertyQuery ${JSON.stringify(
+          `----> Yay! The update - ${update} was added to a ${collection} document that feet the propertyQuery ${JSON.stringify(
             propertyQuery
           )} of ${collection}: ${doc}`
         );
@@ -298,7 +298,7 @@ async function patchById(id, update, res) {
   })
     .then((doc) => {
       console.log(
-        `----> Yay! The updated ${collection} document with id ${id}: ${doc}`
+        `----> Yay! The update - ${update} was added to ${collection} document with id ${id}: ${doc}`
       );
       res.send("Done"); //FIXME: The res is undefined here
     })

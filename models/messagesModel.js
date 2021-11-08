@@ -21,9 +21,13 @@ const messageSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function (toVal) {
-        return isValidId(toVal);
+        const senderId = mongoose.Types.ObjectId(this.from);
+        return (
+          isValidId(toVal) && isIdNotInSenderLastGiftedArr(toVal, senderId)
+        );
       },
-      message: "'to' property have to be a valid mongoose _ID of other user",
+      message:
+        "'to' property have to be a valid mongoose _ID of other user which is not in your lastTenGiftedUsers",
     },
   },
   // Date = miliseconds formated date
@@ -64,6 +68,28 @@ const messageSchema = new mongoose.Schema({
     },
   },
 });
+
+/**
+ * Check if the eddressy is one of the lastTenGiftedUsersArr of the sender
+ * @param {*} toVal mongo _ID of the addressy
+ */
+async function isIdNotInSenderLastGiftedArr(toVal, senderId) {
+  try {
+    let result = await User.findById(senderId).then((doc) => {
+      for (let i = 0; i < doc.lastTenGiftedUsersArr.length; i++) {
+        if (toVal == doc.lastTenGiftedUsersArr[i]) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return result;
+  } catch (error) {
+    console.log(
+      `----> ERROR from isIdInSenderLastGiftedArr func at messagesModel: ${error}`
+    );
+  }
+}
 
 //FIXME: The function is in conversationsModel module too
 async function isValidId(fromVal) {
