@@ -22,8 +22,12 @@ const userSchema = new mongoose.Schema({
   },
   name: {
     type: String,
-    unique: true,
-    maxlength: [20, "MaxLength property must up to 20 characters"],
+    maxlength: [20, "name property must up to 20 characters"],
+  },
+  userName: {
+    type: String,
+    uniqe: true,
+    maxlength: [20, "UserName property must up to 20 characters"],
   },
   keysQ: {
     type: Number,
@@ -40,8 +44,12 @@ const userSchema = new mongoose.Schema({
   //Status - Max 150 characters
   status: {
     type: String,
-    maxLength: 150,
+    maxlength: [150, "Status property must be up to 150 characters"],
     trim: true,
+  },
+  lastTenGiftedUsersArr: {
+    type: Array,
+    maxlength: 10,
   },
 });
 

@@ -31,9 +31,7 @@ const conversationSchema = new mongoose.Schema({
 
 async function isValidId(fromVal) {
   let toReturn = "";
-  console.log(` ----> 34 toReturn: ${toReturn}, fromVal: ${fromVal}`);
   if (fromVal.length == 24) {
-    console.log(` ----> 35 toReturn: ${toReturn}, fromVal: ${fromVal}`);
     toReturn = await User.findById(mongoose.Types.ObjectId(fromVal))
       .then((doc) => {
         if (doc == null) {
@@ -47,10 +45,8 @@ async function isValidId(fromVal) {
         console.log(`---> ERROR from the validator: ${err}`);
       });
   } else {
-    console.log(` ----> 49 toReturn: ${toReturn}, fromVal: ${fromVal}`);
     toReturn = false;
   }
-  console.log(`---> toReturn: ${toReturn}`);
   return toReturn;
 }
 

@@ -10,7 +10,7 @@ const messageSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function (fromVal) {
-        return isIdValidator(fromVal);
+        return isValidId(fromVal);
       },
       message: "'from' property have to be a valid mongoose _ID of other user",
     },
@@ -21,7 +21,7 @@ const messageSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function (toVal) {
-        return isIdValidator(toVal);
+        return isValidId(toVal);
       },
       message: "'to' property have to be a valid mongoose _ID of other user",
     },
@@ -65,7 +65,8 @@ const messageSchema = new mongoose.Schema({
   },
 });
 
-async function isIdValidator(fromVal) {
+//FIXME: The function is in conversationsModel module too
+async function isValidId(fromVal) {
   let toReturn = "";
   if (fromVal.length == 24) {
     toReturn = await User.findById(mongoose.Types.ObjectId(fromVal))
@@ -82,7 +83,6 @@ async function isIdValidator(fromVal) {
   } else {
     toReturn = false;
   }
-  console.log(`---> toReturn: ${toReturn}`);
   return toReturn;
 }
 

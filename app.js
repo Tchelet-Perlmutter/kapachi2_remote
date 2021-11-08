@@ -60,15 +60,21 @@ router1
       .save()
       .then((doc) => {
         console.log(`----> Yay! The new ${collection} document: ${doc}`);
+        console.log("1");
 
-        //Send an SMS to the addressy about the new message he got
-        if (collectionModel == Message) {
+        //Send an SMS to the addressy about the new message he got and add one key to the sender and adding the addressy ID to the lastTenGiftedUsersArr array property of the sender
+        if ((collectionModel == Message) & (doc.isGiftMessage == true)) {
+          const senderId = mongoose.Types.ObjectId(req.body.from);
+          const addressyId = mongoose.Types.ObjectId(req.body.to);
+
+          const update = { $push: { lastTenGiftedUsersArr: `${addressyId}` } };
+
           youGotMessageSMS(req.body);
+          addKeyToSender(doc);
+          patchById(senderId, update, res);
         }
 
         addIndexToArray(doc);
-
-        addKeyToSender(doc);
 
         res.send("Done");
       })
@@ -263,7 +269,7 @@ router1
 async function addKeyToSender(newMessage, res) {
   const senderId = mongoose.Types.ObjectId(newMessage.from);
   let updatedKeyNum = "";
-  await User.findById("613ba907ebcfca14e4705541")
+  await User.findById(senderId)
     .then((doc) => {
       updatedKeyNum = doc.keysQ + 1;
     })
@@ -294,7 +300,7 @@ async function patchById(id, update, res) {
       console.log(
         `----> Yay! The updated ${collection} document with id ${id}: ${doc}`
       );
-      res.send("Done");
+      res.send("Done"); //FIXME: The res is undefined here
     })
     .catch((err) => {
       console.log(
