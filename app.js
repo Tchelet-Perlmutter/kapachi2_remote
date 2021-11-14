@@ -122,33 +122,110 @@ router1
       });
   });
 
-// "/id/:id" route
+// "/id/:idCollectionModel/:id" route
 router1
-  .route("/id/:id")
+  .route("/id/:idCollectionModel/:id")
   // Patch - Update a document
   .patch((req, res) => {
     let id = req.params.id;
     let update = req.body;
     patchById(id, update, res);
   })
-  // GET document by id
+  // GET document by id.
+  // the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
+  //For example: collection = messages, idCollectionModel = User, id = someID. --> The route will return all the messages of the user with the ID param
   .get((req, res) => {
     id = req.params.id;
-    // Document's get query
-    documents = collectionModel
-      .findById(id)
-      .then((doc) => {
-        console.log(
-          `----> Yay! the document with id ${id} of ${collection} collection: ${doc}`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with getting the document with id ${id} of ${collection}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+
+    //The one document with the ID param
+    if (req.params.idCollectionModel == "n") {
+      // Document's get query
+      documents = collectionModel
+        .findById(id)
+        .then((doc) => {
+          console.log(
+            `----> Yay! the document with id ${id} of ${collection} collection: ${doc}`
+          );
+          res.send("Done");
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR with getting the document with id ${id} of ${collection}: ${err}`
+          );
+          res.send(`${err}`);
+        });
+    } else {
+      let idCollectionModel = req.params.idCollectionModel;
+
+      //TODO: check the value of idCollectionModel before the eval
+      //Finding the specific document with the ID param, of the idCollectionModel type, that we want to get all of it's "children's documents" of the collectionModel type
+      eval(idCollectionModel)
+        .findById(mongoose.Types.ObjectId(id))
+        .then((doc) => {
+          if (idCollectionModel == "User") {
+            //Get all the messages of a specific user
+            if (collectionModel == Message) {
+              console.log(
+                `----> YAY! Here are all the messages of the user with the ID: ${id}:`
+              );
+
+              doc.conversationsArr.forEach((conId) => {
+                Conversation.findById(mongoose.Types.ObjectId(conId)).then(
+                  (conDoc) => {
+                    conDoc.messagesIndexesArr.forEach((mesId) => {
+                      Message.findById(mongoose.Types.ObjectId(mesId)).then(
+                        (mesDoc) => {
+                          console.log(mesDoc);
+                        }
+                      );
+                    });
+                  }
+                );
+              });
+              res.end("Done");
+            }
+            //Get all the conversations of a specific user
+            else if (collectionModel == Conversation) {
+              console.log(
+                `----> YAY! Here are all the conversations of the user with the ID: ${id}:`
+              );
+              doc.conversationsArr.forEach((conId) => {
+                Conversation.findById(mongoose.Types.ObjectId(conId)).then(
+                  (conversation) => {
+                    console.log(conversation);
+                  }
+                );
+              });
+              res.end("Done");
+            }
+          } else if (idCollectionModel == "Conversation") {
+            //Get all the messages of a specific conversation
+            if (collectionModel == Message) {
+              Conversation.findById(mongoose.Types.ObjectId(id)).then(
+                (conDoc) => {
+                  conDoc.messagesIndexesArr.forEach((mesId) => {
+                    Message.findById(mongoose.Types.ObjectId(mesId)).then(
+                      (mesDoc) => {
+                        console.log(mesDoc);
+                      }
+                    );
+                  });
+                }
+              );
+              res.end("Done");
+            }
+          } else {
+            console.log(
+              "---> ERROR from route '/id/:idCollectionModel/:id' - idCollectionModel param must be 'User' or 'Conversation'"
+            );
+          }
+        })
+        .catch((err) => {
+          console.log(
+            `---> ERROR from route '/id/:idCollectionModel/:id' - Could not find a document with id ${id} which you want to find it's related ${idCollectionModel} documents: ${err}`
+          );
+        });
+    }
   })
   // Delete document by id
   .delete((req, res) => {
@@ -237,6 +314,8 @@ router1
     propertyQuery = adjustQueryConditions(propertyQuery);
     propertyQuery = adjustQueryIdsArrays(propertyQuery);
 
+    //FIXME:
+    console.log(`propertyQuery: ${propertyQuery} of ${collection} collection`);
     // Document creation
     document = collectionModel
       .findOneAndUpdate(propertyQuery, update, {
@@ -393,7 +472,11 @@ async function youGotMessageSMS(reqBody) {
 function adjustQueryIdsArrays(propertyQuery) {
   //console.log(`propertyQuery: ${propertyQuery}`);
   Object.keys(propertyQuery).forEach((key) => {
-    if ((key == "conversationsArr") | "conversationalistsArr" | "messagesArr") {
+    if (
+      (key == "conversationsArr") |
+      "conversationalistsArr" |
+      "messagesIndexesArr"
+    ) {
       const keyValue = propertyQuery[key];
       const objedVal = mongoose.Types.ObjectId(keyValue);
       propertyQuery.conversationsArr = objedVal;
@@ -448,7 +531,7 @@ function addIndexToArray(newDocument) {
         }
       ).then((doc) => {
         console.log(
-          `----> Yay! The ID ${newDocument.id} of messages colection  was added to the next messagesArr property of a conversations document : ${doc}`
+          `----> Yay! The ID ${newDocument.id} of messages colection  was added to the next messagesIndexesArr property of a conversations document : ${doc}`
         );
       });
     } else if (collection == "conversations") {
