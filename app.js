@@ -67,7 +67,11 @@ router1
         if ((collectionModel == Message) & (doc.isGiftMessage == true)) {
           const addressyId = mongoose.Types.ObjectId(req.body.to);
 
-          const update = { $push: { lastTenGiftedUsersArr: `${addressyId}` } };
+          const update = {
+            $push: {
+              lastTenGiftedUsersArr: mongoose.Types.ObjectId(`${addressyId}`),
+            },
+          };
 
           youGotMessageSMS(req.body);
           addKeyToSender(doc);
@@ -129,6 +133,7 @@ router1
   .patch((req, res) => {
     let id = req.params.id;
     let update = req.body;
+    console.log(`===update: ${JSON.stringify(update)}`);
     patchById(id, update, res);
   })
   // GET document by id.
@@ -286,9 +291,6 @@ router1
     propertyQuery = adjustQueryConditions(propertyQuery);
     propertyQuery = adjustQueryIdsArrays(propertyQuery);
 
-    console.log(
-      `typeof propertyQuery: ${typeof propertyQuery.conversationsArr}`
-    );
     // Document's delliting query
     document = collectionModel
       .deleteMany(propertyQuery)
@@ -369,15 +371,28 @@ async function addKeyToSender(newMessage, res) {
  * @param {*} res In order to allow a response
  */
 async function patchById(id, update, res) {
+  let theCollectionModel = collectionModel;
+  let theCollectionName = collection;
+  const updateFirstKey = Object.entries(update)[0][0];
+  let updateSecondKey = Object.keys(Object.entries(update)[0][1]);
+
+  if (updateFirstKey == "keysQ" || updateSecondKey == "lastTenGiftedUsersArr") {
+    theCollectionModel = User;
+    theCollectionName = "users";
+  }
+
   id = mongoose.Types.ObjectId(id);
   // Document creation
-  document = User.findByIdAndUpdate(id, update, {
-    new: true,
-    runValidators: true,
-  })
+  document = theCollectionModel
+    .findByIdAndUpdate(id, update, {
+      new: true,
+      runValidators: true,
+    })
     .then((doc) => {
       console.log(
-        `----> Yay! The update - ${update} was added to ${collection} document with id ${id}: ${doc}`
+        `----> Yay! The update - ${JSON.stringify(
+          update
+        )} was added to ${theCollectionName} document with id ${id}: ${doc}`
       );
       res.send("Done"); //FIXME: The res is undefined here
     })
@@ -516,9 +531,11 @@ function addIndexToArray(newDocument) {
         // Filter
         {
           //Finding the conversation that the message belongs to.The $elemMatch operator matches documents that contain an array field with at least one element that matches all the specified query criteria.
-          conversationalistsIndexesArr: {
-            $elemMatch: { $eq: newDocument.from, $eq: newDocument.to },
-          },
+
+          $and: [
+            { conversationalistsIndexesArr: { $eq: newDocument.from } },
+            { conversationalistsIndexesArr: { $eq: newDocument.to } },
+          ],
         },
         //Update
         {
