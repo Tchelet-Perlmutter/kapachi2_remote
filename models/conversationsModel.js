@@ -14,13 +14,16 @@ const conversationSchema = new mongoose.Schema({
     validate: {
       validator: async (conversationalistsArr) => {
         if (conversationalistsArr.length > 2) {
+          console.log(`17`);
           return false;
         }
         for (let i = 0; i <= 1; i++) {
           if ((await isValidId(conversationalistsArr[i])) == false) {
+            console.log(`22`);
             return false;
           }
         }
+        console.log(`26`);
         return true;
       },
       message:
@@ -29,10 +32,10 @@ const conversationSchema = new mongoose.Schema({
   },
 });
 
-async function isValidId(fromVal) {
+async function isValidId(val) {
   let toReturn = "";
-  if (fromVal.length == 24) {
-    toReturn = await User.findById(mongoose.Types.ObjectId(fromVal))
+  if (val.length == 24) {
+    toReturn = await User.findById(mongoose.Types.ObjectId(val))
       .then((doc) => {
         if (doc == null) {
           console.log(`---> null doc from isValidId: ${doc}`);
@@ -47,6 +50,7 @@ async function isValidId(fromVal) {
   } else {
     toReturn = false;
   }
+
   return toReturn;
 }
 

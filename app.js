@@ -53,41 +53,8 @@ app.use("/kapachi2/v1/:collection", router1);
 // "/" route
 router1
   .route("/")
-  // POST a document - Creating a new document of the collection and save it into the db
   .post((req, res) => {
-    // Document creation
-    document = new collectionModel(req.body)
-      .save()
-      .then((doc) => {
-        const senderId = mongoose.Types.ObjectId(req.body.from);
-
-        console.log(`----> Yay! The new ${collection} document: ${doc}`);
-
-        //Send an SMS to the addressy about the new message he got and add one key to the sender and adding the addressy ID to the lastTenGiftedUsersArr array property of the sender
-        if ((collectionModel == Message) & (doc.isGiftMessage == true)) {
-          const addressyId = mongoose.Types.ObjectId(req.body.to);
-
-          const update = {
-            $push: {
-              lastTenGiftedUsersArr: mongoose.Types.ObjectId(`${addressyId}`),
-            },
-          };
-
-          youGotMessageSMS(req.body);
-          addKeyToSender(doc);
-          patchById(senderId, update, res);
-        }
-
-        addIndexToArray(doc);
-
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with adding a new ${collection} document: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    postDoc(req.body, collectionModel, true, res);
   })
   // GET all the documents of the collection
   .get((req, res) => {
@@ -134,7 +101,7 @@ router1
     let id = req.params.id;
     let update = req.body;
     console.log(`===update: ${JSON.stringify(update)}`);
-    patchById(id, update, res);
+    patchById(id, update, true, res);
   })
   // GET document by id.
   // the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
@@ -361,7 +328,7 @@ async function addKeyToSender(newMessage, res) {
     });
   const update = { keysQ: updatedKeyNum };
 
-  patchById(senderId, update, res);
+  patchById(senderId, update, false, res);
 }
 
 /**
@@ -370,11 +337,12 @@ async function addKeyToSender(newMessage, res) {
  * @param {*} update The JSON object with the update info
  * @param {*} res In order to allow a response
  */
-async function patchById(id, update, res) {
+async function patchById(id, update, isResEnd, res) {
   let theCollectionModel = collectionModel;
   let theCollectionName = collection;
   const updateFirstKey = Object.entries(update)[0][0];
   let updateSecondKey = Object.keys(Object.entries(update)[0][1]);
+  let updatedDoc = "";
 
   if (updateFirstKey == "keysQ" || updateSecondKey == "lastTenGiftedUsersArr") {
     theCollectionModel = User;
@@ -383,7 +351,7 @@ async function patchById(id, update, res) {
 
   id = mongoose.Types.ObjectId(id);
   // Document creation
-  document = theCollectionModel
+  document = await theCollectionModel
     .findByIdAndUpdate(id, update, {
       new: true,
       runValidators: true,
@@ -394,14 +362,21 @@ async function patchById(id, update, res) {
           update
         )} was added to ${theCollectionName} document with id ${id}: ${doc}`
       );
-      res.send("Done"); //FIXME: The res is undefined here
+      if (isResEnd) {
+        res.send("Done"); //FIXME: The res is undefined here
+      }
+
+      return doc;
     })
     .catch((err) => {
       console.log(
-        `----> ERROR with updating a ${collection} document with id ${id}: ${err}`
+        `----> ERROR from patchById function - didn't update the ${collection} document with id ${id} with the update ${JSON.stringify(
+          update
+        )} : ${err}`
       );
-      res.send(`${err}`);
+      //FIXME:res.send(`${err}`);
     });
+  return document;
 }
 
 /**
@@ -520,13 +495,112 @@ function adjustQueryConditions(propertyQuery) {
   return propertyQuery;
 }
 
+async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
+  try {
+    // POST a document - Creating a new document of the collection and save it into the db
+
+    theCollectionModel = eval(theCollectionModel);
+
+    document = await new theCollectionModel(newDocContent)
+      .save()
+      .then(async (doc) => {
+        console.log(`----> Yay! The new document: ${doc}`);
+
+        //Send an SMS to the addressy about the new message he got and add one key to the sender and adding the addressy ID to the lastTenGiftedUsersArr array property of the sender
+        if ((theCollectionModel == Message) & (doc.isGiftMessage == true)) {
+          let senderId = mongoose.Types.ObjectId(doc.from);
+          let addressyId = "";
+          if (typeof newDocContent.to == "string") {
+            addressyId = mongoose.Types.ObjectId(newDocContent.to);
+          } else {
+            //Creating a new User document of the unsigned adressy which is not in the DB yet
+            let mapToProperty = new Map(doc.to);
+
+            let unassignedNewUserContent = {
+              phone: mapToProperty.get("toPhone"),
+              conversationsArr: [],
+              name: mapToProperty.get("toName"),
+              password: mapToProperty.get("toPhone"),
+              userName: mapToProperty.get("toName"),
+              keysQ: 0,
+              messagesHeChanedQ: 0,
+              userRank: 0,
+              status: "I am a loved soul",
+              lastTenGiftedUsersArr: [],
+            };
+
+            await new User(unassignedNewUserContent)
+              .save()
+              .then((newUnassignedUser) => {
+                console.log(
+                  `----> Yay! newUnassignedUser was created because the addressy of the message is not assigned yet: ${newUnassignedUser}`
+                );
+                addressyId = newUnassignedUser._id;
+                addressyId = String(newUnassignedUser._id);
+              })
+              .catch((err) => {
+                console.log(
+                  `---> ERROR from postDoc function in new 'to' unassugned User creation: ${err}`
+                );
+              });
+
+            //Creating new Conversation of the sender and the new unassigned user we just created. The postDoc will push the new conversation id to its conversationalits relevant arrays
+            const newConversationContent = {
+              messagesIndexesArr: [doc._id],
+              conversationalistsIndexesArr: [doc.from, addressyId],
+            };
+
+            await postDoc(newConversationContent, Conversation, false, res);
+
+            //Changing the 'to' value of the new message, to be the id of the new unassigned user and not the original Map
+            const toUpdated = { to: addressyId };
+            doc = await patchById(doc._id, toUpdated, false, res);
+          }
+
+          const update = {
+            $push: {
+              lastTenGiftedUsersArr: addressyId,
+            },
+          };
+
+          //Adding the adressy _id to the lastTenGiftedArr property of the sender
+          await patchById(senderId, update, false, res);
+
+          addKeyToSender(doc);
+
+          youGotMessageSMS(doc);
+        }
+
+        //This 'if' is for alumonate duplication in the new message ID in the messagesIndexesArr property of the conversation, when it is a unassigned addressy, because I added it's ID to the array when I created the new conversation before.
+        if (typeof newDocContent.to != "object") {
+          //If the conversationalists don't have a conversation document yet, it will be created threw that addIndexToArray function
+          await addIndexToArray(doc, theCollectionModel, res);
+        }
+
+        if (isResEnd) {
+          res.send("Done");
+        }
+      })
+      .catch((err) => {
+        console.log(
+          `----> ERROR with some part of the proccess of postDoc function. The doc content: ${JSON.stringify(
+            newDocContent
+          )} : ${err}`
+        );
+        res.send(`${err}`);
+      });
+  } catch (err) {
+    console.log(`----> ERROR from postDoc function: ${err}`);
+  }
+}
+
 /**
  * Takes the newDocument and add it's _id to the property (of other collection's document) that holds the id of that type of documents
  * @param //{Document} newDocument
  */
-function addIndexToArray(newDocument) {
+function addIndexToArray(newDocument, theCollectionModel, res) {
   try {
-    if (collection == "messages") {
+    if (theCollectionModel == Message) {
       Conversation.findOneAndUpdate(
         // Filter
         {
@@ -546,15 +620,30 @@ function addIndexToArray(newDocument) {
         {
           new: true,
         }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument.id} of messages colection  was added to the next messagesIndexesArr property of a conversations document : ${doc}`
-        );
-      });
-    } else if (collection == "conversations") {
+      )
+        .then((doc) => {
+          if (doc == null) {
+            let newConversationContent = {
+              messagesIndexesArr: [newDocument._id],
+              conversationalistsIndexesArr: [newDocument.from, newDocument.to],
+            };
+            postDoc(newConversationContent, Conversation, true, res);
+            return;
+          }
+
+          console.log(
+            `----> Yay! The ID ${newDocument._id} of messages colection  was added to the next messagesIndexesArr property of a conversations document : ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from addIndexToArray function when collection = messages: ${err}`
+          );
+        });
+    } else if (theCollectionModel == Conversation) {
       //Finding the two users who are the conversationalists of that conversation and push conversation id to it's conversationsArr
       //FIXME: First and Second users downhere are the sa,e and need to be one function
-      //First user
+      //First user - 'from' user
       User.findByIdAndUpdate(
         newDocument.conversationalistsIndexesArr[0],
         { $push: { conversationsArr: newDocument._id } },
@@ -564,7 +653,7 @@ function addIndexToArray(newDocument) {
           `----> Yay! The ID ${newDocument.id} of conversations collection was added to the next  conversationsArr property of a user document: ${doc}`
         );
       });
-      //Seccond users
+      //Seccond users - 'to' user
       User.findByIdAndUpdate(
         newDocument.conversationalistsIndexesArr[1],
         { $push: { conversationsArr: newDocument._id } },
@@ -576,7 +665,9 @@ function addIndexToArray(newDocument) {
       });
     }
   } catch (err) {
-    console.log(`-----> ERROR with function "addIndexToArray": ${err}`);
+    console.log(
+      `-----> ERROR with function "addIndexToArray" when collection = conversations: ${err}`
+    );
   }
 }
 
@@ -619,7 +710,7 @@ function deleteIndexFromArray(newDocument) {
         { new: true }
       ).then((doc) => {
         console.log(
-          `----> Yay! The ID ${newDocument.id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
+          `----> Yay! The ID ${newDocument._id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
         );
       });
       //Seccond users

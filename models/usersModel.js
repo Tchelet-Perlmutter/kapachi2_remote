@@ -7,8 +7,11 @@ const userSchema = new mongoose.Schema({
     required: [true, "A User must have a phone number"],
     unique: true,
     trim: true,
-    minlength: [13, "Phone property must be exactly 13 characters"],
-    maxlength: [13, "Phone property must be exactly 13 characters"],
+    validate: {
+      validator: function (phoneNum) {
+        return isValidPhone(phoneNum);
+      },
+    },
   },
   //Conversation's array = Conversation's indexes in the db
   conversationsArr: {
@@ -16,7 +19,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    unique: true,
+    uniqe: true,
     minlength: [8, "Password property must be 8 to 14 characters"],
     maxlength: [14, "Password property must be 8 to 14 characters"],
   },
@@ -52,6 +55,47 @@ const userSchema = new mongoose.Schema({
     maxlength: 10,
   },
 });
+
+/**
+ * Checks if the phoneNum is in the next format: +XXXXXXXXXXXX, with numbers and + sign only, and not exsists in other user document
+ * @param {*} phoneNum
+ */
+// function isValidAndNewPhone(phoneNum) {
+//   if (phoneNum.length == 13) {
+//     User.find({ phone: phoneNum })
+//       .then((doc) => {
+//         if (doc == null) {
+//           return isValidPhone(phoneNum);
+//         }
+//       })
+//       .catch((error) => {
+//         console.log(`---> ERROR from isValidPhone function: ${error}`);
+//       });
+//   }
+// }
+
+/**
+ * Validate international phone numbers based on ITU-T standards.
+ * @param {*} phoneNum
+ */
+function isValidPhone(phoneNum) {
+  if (phoneNum.length == 13) {
+    if (phoneNum.match(/^\+(?:[0-9] ?){6,14}[0-9]$/)) {
+      console.log(`===84`);
+      return true;
+    } else {
+      console.log(
+        `---> ERROR from isValidPhone function - the phone property is not vald - it contains unvalid characters`
+      );
+      return false;
+    }
+  } else {
+    console.log(
+      `---> ERROR from isValidPhone function - the phone property is not valid - it contains more or less then 13 characters`
+    );
+    return false;
+  }
+}
 
 // User model
 const User = mongoose.model("users", userSchema);
