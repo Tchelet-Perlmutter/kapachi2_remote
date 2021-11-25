@@ -14,16 +14,13 @@ const conversationSchema = new mongoose.Schema({
     validate: {
       validator: async (conversationalistsArr) => {
         if (conversationalistsArr.length > 2) {
-          console.log(`17`);
           return false;
         }
         for (let i = 0; i <= 1; i++) {
           if ((await isValidId(conversationalistsArr[i])) == false) {
-            console.log(`22`);
             return false;
           }
         }
-        console.log(`26`);
         return true;
       },
       message:
@@ -32,6 +29,11 @@ const conversationSchema = new mongoose.Schema({
   },
 });
 
+/**
+ * Checks if val is an ID of an existing user
+ * @param {*} val string
+ * @returns true if val is an ID of an existing user. Otherwise return false
+ */
 async function isValidId(val) {
   let toReturn = "";
   if (val.length == 24) {
