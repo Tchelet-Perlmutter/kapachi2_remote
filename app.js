@@ -38,8 +38,7 @@ let collection = " ";
 let collectionModel = " ";
 let id = " ";
 
-// Asigning the collection name in to a variable & upercasing the first char of the collection + cutting the last letter, in order to turn it to the collection's model's name. ??? Without the evan function the collectionModel's type would be String and not a function
-
+// Asigning the collection name in to a variable & upercasing the first char of the collection + cutting the last letter, in order to turn it to the collection's model's name
 app.use("/kapachi2/v1/:collection", (req, res, next) => {
   collection = req.params.collection;
   collectionModel = eval(
@@ -53,7 +52,9 @@ app.use("/kapachi2/v1/:collection", router1);
 // "/" route
 router1
   .route("/")
+
   .post((req, res) => {
+    console.log(`===56 req.body: ${JSON.stringify(req.body)}`);
     postDoc(req.body, collectionModel, true, res);
   })
   // GET all the documents of the collection
@@ -495,6 +496,14 @@ function adjustQueryConditions(propertyQuery) {
   return propertyQuery;
 }
 
+/**
+ *  Create new document with the 'newDocContent' of 'theCollectionModel' collection. if the addressy is unassigned. If the addressy is assigned but the sender does'nt have a conversation with him yet (it is their first message), postDoc create the new conversation.
+ * @param {*} newDocContent JSON of the new document. 
+ - In case of message to an unassigned addressy, 'to' would be in the next format: [["toPhone", "validPhone"], ["toName", "name"]]. 
+ * @param {*} theCollectionModel model object of the new document collection
+ * @param {*} isResEnd bollean answers if we want postDoc to res.end and finish the medlewears sicle, or not yet.
+ * @param {*} res
+ */
 async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
   try {
     // POST a document - Creating a new document of the collection and save it into the db
