@@ -12,22 +12,37 @@ const conversationSchema = new mongoose.Schema({
     type: Array,
     required: [true, "A conversation should have conversationalists"],
     validate: {
-      validator: async (conversationalistsArr) => {
-        if (conversationalistsArr.length > 2) {
-          return false;
-        }
-        for (let i = 0; i <= 1; i++) {
-          if ((await isValidId(conversationalistsArr[i])) == false) {
-            return false;
-          }
-        }
-        return true;
+      validator: async function (conversationalistsIndexesArr) {
+        return await isValidConversationalists(conversationalistsIndexesArr);
       },
       message:
         "'conversationalistsIndexesArr' property have to contain two valid mongoDB _IDs of other users",
     },
   },
 });
+
+/**
+ * Check if the conversationalistsArr is valid: Two different IDs of an existing users
+ * @param {*} conversationalconversationalistsArr  Array
+ * @returns true if it is valid and false if it is not
+ */
+async function isValidConversationalists(conversationalconversationalistsArr) {
+  if (
+    conversationalistsArr.length > 2 ||
+    conversationalistsArr[0] == conversationalistsArr[1]
+  ) {
+    console.log(
+      `----> ERROR from isValidConversationalists  function - The conversationalistsArr value contains more then two conversationalists, or two coppied conversationalists. The conversationalistsArr value: ${conversationalistsArr}`
+    );
+    return false;
+  }
+  for (let i = 0; i <= 1; i++) {
+    if ((await isValidId(conversationalistsArr[i])) == false) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /**
  * Checks if val is an ID of an existing user
