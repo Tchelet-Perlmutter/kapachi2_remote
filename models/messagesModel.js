@@ -80,7 +80,6 @@ const messageSchema = new mongoose.Schema({
 function isValidPhone(phoneNum) {
   if (phoneNum.length == 13) {
     if (phoneNum.match(/^\+(?:[0-9] ?){6,14}[0-9]$/)) {
-      console.log(`===84`);
       return true;
     } else {
       console.log(
@@ -160,16 +159,16 @@ async function isIdNotInSenderLastGiftedArr(toVal, senderId) {
     return result;
   } catch (error) {
     console.log(
-      `----> ERROR from isIdInSenderLastGiftedArr func at messagesModel. 'toVal': ${toVal}. 'senderId': ${senderId}: ${error}`
+      `----> ERROR from isIdNotInSenderLastGiftedArr func at messagesModel. 'toVal': ${toVal}. 'senderId': ${senderId}: ${error}`
     );
   }
 }
 
 //FIXME: The function is in conversationsModel module too
 /**
- *
- * @param {*} fromVal
- * @returns
+ * Checks if val is an ID of an existing user
+ * @param {*} val string
+ * @returns true if val is an ID of an existing user. Otherwise return false
  */
 async function isValidId(val) {
   let toReturn = "";

@@ -54,7 +54,6 @@ router1
   .route("/")
 
   .post((req, res) => {
-    console.log(`===56 req.body: ${JSON.stringify(req.body)}`);
     postDoc(req.body, collectionModel, true, res);
   })
   // GET all the documents of the collection
@@ -465,7 +464,7 @@ function adjustQueryIdsArrays(propertyQuery) {
   Object.keys(propertyQuery).forEach((key) => {
     if (
       (key == "conversationsArr") |
-      "conversationalistsArr" |
+      "conversationalistsIndexesArr" |
       "messagesIndexesArr"
     ) {
       const keyValue = propertyQuery[key];
@@ -501,7 +500,7 @@ function adjustQueryConditions(propertyQuery) {
  * @param {*} newDocContent JSON of the new document. 
  - In case of message to an unassigned addressy, 'to' would be in the next format: [["toPhone", "validPhone"], ["toName", "name"]]. 
  * @param {*} theCollectionModel model object of the new document collection
- * @param {*} isResEnd bollean answers if we want postDoc to res.end and finish the medlewears sicle, or not yet.
+ * @param {*} isResEnd boollean answers if we want postDoc to res.end and finish the medlewears sicle, or not yet.
  * @param {*} res
  */
 async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
@@ -525,7 +524,7 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
             //Creating a new User document of the unsigned adressy which is not in the DB yet
             let mapToProperty = new Map(doc.to);
 
-            let unassignedNewUserContent = {
+            let newUnassignedUserContent = {
               phone: mapToProperty.get("toPhone"),
               conversationsArr: [],
               name: mapToProperty.get("toName"),
@@ -538,22 +537,17 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
               lastTenGiftedUsersArr: [],
             };
 
-            await new User(unassignedNewUserContent)
-              .save()
-              .then((newUnassignedUser) => {
-                console.log(
-                  `----> Yay! newUnassignedUser was created because the addressy of the message is not assigned yet: ${newUnassignedUser}`
-                );
-                addressyId = newUnassignedUser._id;
-                addressyId = String(newUnassignedUser._id);
-              })
-              .catch((err) => {
-                console.log(
-                  `---> ERROR from postDoc function in new 'to' unassugned User creation: ${err}`
-                );
-              });
+            let newUnassignedUser = await postDoc(
+              newUnassignedUserContent,
+              User,
+              false,
+              res
+            );
 
-            //Creating new Conversation of the sender and the new unassigned user we just created. The postDoc will push the new conversation id to its conversationalits relevant arrays
+            addressyId = newUnassignedUser._id;
+            addressyId = String(newUnassignedUser._id);
+
+            //Creating new conversation document of the sender and the new unassigned user we just created. The postDoc will push the new conversation id to its conversationalits relevant arrays
             const newConversationContent = {
               messagesIndexesArr: [doc._id],
               conversationalistsIndexesArr: [doc.from, addressyId],
@@ -580,7 +574,7 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
           youGotMessageSMS(doc);
         }
 
-        //This 'if' is for alumonate duplication in the new message ID in the messagesIndexesArr property of the conversation, when it is a unassigned addressy, because I added it's ID to the array when I created the new conversation before.
+        //This 'if' is for aluminate duplication in the new message ID in the messagesIndexesArr property of the conversation, when it is a unassigned addressy, because I added it's ID to the array when I created the new conversation before.
         if (typeof newDocContent.to != "object") {
           //If the conversationalists don't have a conversation document yet, it will be created threw that addIndexToArray function
           await addIndexToArray(doc, theCollectionModel, res);
@@ -588,6 +582,8 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
 
         if (isResEnd) {
           res.send("Done");
+        } else {
+          return doc;
         }
       })
       .catch((err) => {
@@ -598,6 +594,8 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
         );
         res.send(`${err}`);
       });
+
+    return document;
   } catch (err) {
     console.log(`----> ERROR from postDoc function: ${err}`);
   }

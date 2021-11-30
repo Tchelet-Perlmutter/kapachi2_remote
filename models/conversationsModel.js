@@ -7,6 +7,9 @@ const conversationSchema = new mongoose.Schema({
   messagesIndexesArr: {
     type: Array,
   },
+  test: {
+    type: Array,
+  },
   //The converationalists of the conversation = their IDs
   conversationalistsIndexesArr: {
     type: Array,
@@ -21,23 +24,31 @@ const conversationSchema = new mongoose.Schema({
   },
 });
 
+conversationSchema.index(
+  {
+    "test.one": 1,
+    "test.two": 1,
+  },
+  { unique: true }
+);
+
 /**
- * Check if the conversationalistsArr is valid: Two different IDs of an existing users
- * @param {*} conversationalconversationalistsArr  Array
+ * Check if the conversationalistsIndexesArr is valid: Two different IDs of an existing users
+ * @param {*} conversationalistsIndexesArr  Array
  * @returns true if it is valid and false if it is not
  */
-async function isValidConversationalists(conversationalconversationalistsArr) {
+async function isValidConversationalists(conversationalistsIndexesArr) {
   if (
-    conversationalistsArr.length > 2 ||
-    conversationalistsArr[0] == conversationalistsArr[1]
+    conversationalistsIndexesArr.length > 2 ||
+    conversationalistsIndexesArr[0] == conversationalistsIndexesArr[1]
   ) {
     console.log(
-      `----> ERROR from isValidConversationalists  function - The conversationalistsArr value contains more then two conversationalists, or two coppied conversationalists. The conversationalistsArr value: ${conversationalistsArr}`
+      `----> ERROR from isValidConversationalists  function - The conversationalistsIndexesArr value contains more then two conversationalists, or two coppied conversationalists. The conversationalistsIndexesArr value: ${conversationalistsIndexesArr}`
     );
     return false;
   }
   for (let i = 0; i <= 1; i++) {
-    if ((await isValidId(conversationalistsArr[i])) == false) {
+    if ((await isValidId(conversationalistsIndexesArr[i])) == false) {
       return false;
     }
   }
