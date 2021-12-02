@@ -100,12 +100,12 @@ router1
   .patch((req, res) => {
     let id = req.params.id;
     let update = req.body;
-    console.log(`===update: ${JSON.stringify(update)}`);
     patchById(id, update, true, res);
   })
   // GET document by id.
   // the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
   //For example: collection = messages, idCollectionModel = User, id = someID. --> The route will return all the messages of the user with the ID param
+  // ??? How to query for documents which have an array paroperty with a combination of a few values, *no metter the value's order*?
   .get((req, res) => {
     id = req.params.id;
 
@@ -223,6 +223,11 @@ router1
   });
 
 // "/propertyQuery" route
+// The format of req.qury in the URI is - propertyName[condition or inner property (optional)]=val. Mongoose convert it to a query object: {"propertyName": {"condition or inner property": val}}.
+//In order to make spaces in the value in the URI, we should use + sign instead a space.
+//Inside the handler functions, 'adjustQueryConditions' is adding $ sign before every condition.
+//In order to query the documents which contain a specific value in one of their array propertys, all that is needed is to write the name of the array property, then = sign and then the value that we want the array to contain
+//In order to query that but with multiple values we want the array to contain, that would be the format: arrayPropertyName[]=val1&arrayPropertyName[]=val2&arrayPropertyName[]=val3
 router1
   .route("/propertyQuery")
   //GET document by property
@@ -293,7 +298,9 @@ router1
       })
       .then((doc) => {
         console.log(
-          `----> Yay! The update - ${update} was added to a ${collection} document that feet the propertyQuery ${JSON.stringify(
+          `----> Yay! The update - ${JSON.stringify(
+            update
+          )} was added to a ${collection} document that feet the propertyQuery ${JSON.stringify(
             propertyQuery
           )} of ${collection}: ${doc}`
         );
@@ -308,6 +315,38 @@ router1
   });
 
 ////////// CONTROLERS ///////////
+
+/**
+* More elegant version of "deleteIndexFromArray" function.
+Find all of the documents (from 'collectionToDeleteFrom' collection)with the id in their arrayPropertyName and pulling id from that array property
+ * @param {*} id String of a valid _id
+ * @param {*} collectionToDeleteFrom String of a collection model
+ * @param {*} arrayPropertyName String of an array property
+ */
+// async function deleteIdFromArrayPropertys(
+//   id,
+//   collectionToDeleteFrom,
+//   arrayPropertyName
+// ) {
+//   //I dont use here fineOneAndUpdate() function because if the id is of a conversation, therer are two users to delte the conversation from
+//   await collectionToDeleteFrom
+//     .find({ arrayPropertyName: id })
+//     .then((documents) => {
+//       documents.forEach((doc) => {
+//         doc.arrayPropertyName.splice(id, 1);
+//         console.log(
+//           `----> Yay! The id ${id} was deleted from ${arrayPropertyName} property of the next ${collectionToDeleteFrom} document: ${JSON.stringify(
+//             doc
+//           )}`
+//         );
+//       });
+//     })
+//     .catch((err) => {
+//       console.log(
+//         `----> ERROR from 'deleteIdFromArrayPropertys' function. id: ${id}, collectionToDeleteFrom: ${collectionToDeleteFrom}, arrayPropertyName: ${arrayPropertyName}.The error: ${err}`
+//       );
+//     });
+// }
 
 /**
  * Adding a new key to the sender of the message
@@ -689,9 +728,10 @@ function deleteIndexFromArray(newDocument) {
         // Filter
         {
           //Finding the conversation that the message belongs to.The $elemMatch operator matches documents that contain an array field with at least one element that matches all the specified query criteria.
-          conversationalistsIndexesArr: {
-            $elemMatch: { $eq: newDocument.from, $eq: newDocument.to },
-          },
+          $and: [
+            { conversationalistsIndexesArr: { $eq: newDocument.from } },
+            { conversationalistsIndexesArr: { $eq: newDocument.to } },
+          ],
         },
         //Update -> Delete
         {
