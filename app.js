@@ -6,6 +6,7 @@ const twilio = require("twilio");
 const User = require("./models/usersModel");
 const Message = require("./models/messagesModel");
 const Conversation = require("./models/conversationsModel");
+const { DocumentList } = require("twilio/lib/rest/sync/v1/service/document");
 
 const app = express();
 const port = 3000;
@@ -98,128 +99,18 @@ router1
   .route("/id/:idCollectionModel/:id")
   // Patch - Update a document
   .patch((req, res) => {
-    let id = req.params.id;
-    let update = req.body;
-    patchById(id, update, true, res);
+    getPatchDeleteById("update", req, res);
   })
   // GET document by id.
   // the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
   //For example: collection = messages, idCollectionModel = User, id = someID. --> The route will return all the messages of the user with the ID param
   // ??? How to query for documents which have an array paroperty with a combination of a few values, *no metter the value's order*?
   .get((req, res) => {
-    id = req.params.id;
-
-    //The one document with the ID param
-    if (req.params.idCollectionModel == "n") {
-      // Document's get query
-      documents = collectionModel
-        .findById(id)
-        .then((doc) => {
-          console.log(
-            `----> Yay! the document with id ${id} of ${collection} collection: ${doc}`
-          );
-          res.send("Done");
-        })
-        .catch((err) => {
-          console.log(
-            `----> ERROR with getting the document with id ${id} of ${collection}: ${err}`
-          );
-          res.send(`${err}`);
-        });
-    } else {
-      let idCollectionModel = req.params.idCollectionModel;
-
-      //TODO: check the value of idCollectionModel before the eval
-      //Finding the specific document with the ID param, of the idCollectionModel type, that we want to get all of it's "children's documents" of the collectionModel type
-      eval(idCollectionModel)
-        .findById(mongoose.Types.ObjectId(id))
-        .then((doc) => {
-          if (idCollectionModel == "User") {
-            //Get all the messages of a specific user
-            if (collectionModel == Message) {
-              console.log(
-                `----> YAY! Here are all the messages of the user with the ID: ${id}:`
-              );
-
-              doc.conversationsArr.forEach((conId) => {
-                Conversation.findById(mongoose.Types.ObjectId(conId)).then(
-                  (conDoc) => {
-                    conDoc.messagesIndexesArr.forEach((mesId) => {
-                      Message.findById(mongoose.Types.ObjectId(mesId)).then(
-                        (mesDoc) => {
-                          console.log(mesDoc);
-                        }
-                      );
-                    });
-                  }
-                );
-              });
-              res.end("Done");
-            }
-            //Get all the conversations of a specific user
-            else if (collectionModel == Conversation) {
-              console.log(
-                `----> YAY! Here are all the conversations of the user with the ID: ${id}:`
-              );
-              doc.conversationsArr.forEach((conId) => {
-                Conversation.findById(mongoose.Types.ObjectId(conId)).then(
-                  (conversation) => {
-                    console.log(conversation);
-                  }
-                );
-              });
-              res.end("Done");
-            }
-          } else if (idCollectionModel == "Conversation") {
-            //Get all the messages of a specific conversation
-            if (collectionModel == Message) {
-              Conversation.findById(mongoose.Types.ObjectId(id)).then(
-                (conDoc) => {
-                  conDoc.messagesIndexesArr.forEach((mesId) => {
-                    Message.findById(mongoose.Types.ObjectId(mesId)).then(
-                      (mesDoc) => {
-                        console.log(mesDoc);
-                      }
-                    );
-                  });
-                }
-              );
-              res.end("Done");
-            }
-          } else {
-            console.log(
-              "---> ERROR from route '/id/:idCollectionModel/:id' - idCollectionModel param must be 'User' or 'Conversation'"
-            );
-          }
-        })
-        .catch((err) => {
-          console.log(
-            `---> ERROR from route '/id/:idCollectionModel/:id' - Could not find a document with id ${id} which you want to find it's related ${idCollectionModel} documents: ${err}`
-          );
-        });
-    }
+    getPatchDeleteById("get", req, res);
   })
   // Delete document by id
   .delete((req, res) => {
-    id = req.params.id;
-
-    // Document's delliting query
-    document = collectionModel
-      .findByIdAndDelete(id)
-      .then((doc) => {
-        // Delete the document id from it's array in other collection
-        deleteIndexFromArray(doc);
-        console.log(
-          `----> Yay! The document with id ${doc.id} of ${collection} collection was deleted`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with deliting the document with id ${id} of ${collection}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    getPatchDeleteById("delete", req, res);
   });
 
 // "/propertyQuery" route
@@ -317,6 +208,229 @@ router1
 ////////// CONTROLERS ///////////
 
 /**
+ * Async func that GET (Print and return) the document with the id param of theCollectionModel param
+ * @returns {Promise} The document
+ * @param {*} id String of an _id
+ * @param {*} res
+ * @param {*} theCollectionModel String of a collection model name
+ * @param {*} funcCalledFrom String of a the function name that called the getOne by id function
+ */
+async function getOneById(id, res, theCollectionModel, funcCalledFrom) {
+  Documents = await theCollectionModel
+    .findById(id)
+    .then((doc) => {
+      console.log(`----> Yay! the document with id ${id}: ${doc}`);
+      res.send("Done");
+      return doc;
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR from getOneById - the document with id ${id} of ${theCollectionModel} collection. The function was called from ${funcCalledFrom} function. ${err}`
+      );
+      res.send(`${err}`);
+    });
+  return document;
+}
+
+/**
+ * Async func that Delete ( & Print and return) the document with the id param of theCollectionModel param
+ * @returns {Promise} The document
+ * @param {*} id String of an _id
+ * @param {*} res
+ * @param {*} theCollectionModel String of a collection model name
+ * @param {*} funcCalledFrom String of a the function name that called the deleteOne by id function
+ */
+async function deleteOneById(id, res, theCollectionModel, funcCalledFrom) {
+  document = theCollectionModel
+    .findByIdAndDelete(id)
+    .then((doc) => {
+      // Delete the document id from it's array in other collection
+      deleteIndexFromArray(doc);
+      console.log(`----> Yay! The document with id ${doc.id} was deleted`);
+      res.send("Done");
+      return doc;
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR from deleteOneById function - The document id: ${id}. The function was called from: ${funcCalledFrom} function. ${err}.`
+      );
+      res.send(`${err}`);
+    });
+  return document;
+}
+
+async function getPatchDeleteById(getDeleteOrUpdate, req, res) {
+  let idCollectionModel = req.params.idCollectionModel;
+  let id = req.params.id;
+  //The one document with the ID param
+  if (idCollectionModel == "n") {
+    if (getDeleteOrUpdate == "get") {
+      // Document's get query
+      getOneById(
+        id,
+        res,
+        collectionModel,
+        "getPatchDeleteById - First call of getOnwById"
+      );
+    } else if (getDeleteOrUpdate == "update") {
+      //Update by ID
+      let update = req.body;
+      patchOneById(
+        id,
+        update,
+        true,
+        res,
+        "getPatchDeletById - First call of patchOneById"
+      );
+      //Delete by ID
+    } else if (getDeleteOrUpdate == "delete") {
+      deleteOneById(
+        id,
+        res,
+        collectionModel,
+        "'getPatchDeleteById' function - First call of deleteOneById"
+      );
+    }
+    //else -> The idCollectionModel param is a collection name
+  } else {
+    //TODO: check the value of idCollectionModel before the eval
+
+    //Finding the specific document with the ID param, of the idCollectionModel type, that we want to get/delete/update all of it's "children's documents" of the collectionModel type
+    eval(idCollectionModel)
+      .findById(mongoose.Types.ObjectId(id))
+      .then((doc) => {
+        if (idCollectionModel == "User") {
+          //Get/Patch/Delete all the messages of a specific user
+          if (collectionModel == Message) {
+            console.log(
+              `----> YAY! Here are all the messages of the user with the ID: ${id} that you wanted to ${getDeleteOrUpdate}:`
+            );
+
+            doc.conversationsArr.forEach((conId) => {
+              Conversation.findById(mongoose.Types.ObjectId(conId))
+                .then((conDoc) => {
+                  conDoc.messagesIndexesArr.forEach((mesId) => {
+                    if (getDeleteOrUpdate == "get") {
+                      getOneById(
+                        mesId,
+                        res,
+                        collectionModel,
+                        "getPatchDeletById - Second call of patchOneById"
+                      );
+                    } else if (getDeleteOrUpdate == "delete") {
+                      deleteOneById(
+                        mesId,
+                        res,
+                        collectionModel,
+                        "'getPatchDeleteById' function - Second call of deleteOneById"
+                      );
+                    } else if (getDeleteOrUpdate == "update") {
+                      let update = req.body;
+                      patchOneById(
+                        mesId,
+                        update,
+                        true,
+                        res,
+                        "getPatchDeleteById - Second call of patchOneById"
+                      );
+                    }
+                  });
+                })
+                .catch((err) => {
+                  console.log(
+                    `----> ERROR from "getPatchDeleteById" function - DELETE all messages of a user by id - problem with finding the conversation with id ${conId} of user: ${JSON.stringify(
+                      doc
+                    )}. The error: ${err}`
+                  );
+                  res.end(err);
+                });
+            });
+            res.end("Done");
+          }
+          //Get/Patch/Delete all the conversations of a specific user
+          else if (collectionModel == Conversation) {
+            console.log(
+              `----> YAY! Here are all the conversations of the user with the ID: ${id} that you wanted to ${getDeleteOrUpdate}:`
+            );
+            doc.conversationsArr.forEach((conId) => {
+              if (getDeleteOrUpdate == "get") {
+                getOneById(
+                  conId,
+                  res,
+                  collectionModel,
+                  "getPatchDeletById - Third call of patchOneById"
+                );
+              } else if (getDeleteOrUpdate == "delete") {
+                deleteOneById(
+                  conId,
+                  res,
+                  collectionModel,
+                  "'getPatchDeleteById' function - Third call of deleteOneById"
+                );
+              } else if (getDeleteOrUpdate == "update") {
+                let update = req.body;
+                patchOneById(
+                  conId,
+                  update,
+                  true,
+                  res,
+                  "getPatchDeleteById - Third call of patchOneById"
+                );
+              }
+            });
+            res.end("Done");
+          }
+        } else if (idCollectionModel == "Conversation") {
+          //Get all the messages of a specific conversation
+          if (collectionModel == Message) {
+            Conversation.findById(mongoose.Types.ObjectId(id)).then(
+              (conDoc) => {
+                conDoc.messagesIndexesArr.forEach((mesId) => {
+                  if (getDeleteOrUpdate == "get") {
+                    getOneById(
+                      medId,
+                      res,
+                      collectionModel,
+                      "getPatchDeletById - Fourth call of patchOneById"
+                    );
+                  } else if (getDeleteOrUpdate == "delete") {
+                    deleteOneById(
+                      mesId,
+                      res,
+                      collectionModel,
+                      "'getPatchDeleteById' function - Fourth call of deleteOneById"
+                    );
+                  } else if (getDeleteOrUpdate == "update") {
+                    let id = req.params.id;
+                    let update = req.body;
+                    patchOneById(
+                      mesId,
+                      update,
+                      true,
+                      res,
+                      "getPatchDeleteById - Fourth call of patchOneById"
+                    );
+                  }
+                });
+              }
+            );
+            res.end("Done");
+          }
+        } else {
+          console.log(
+            "---> ERROR from route '/id/:idCollectionModel/:id' - idCollectionModel param must be 'User' or 'Conversation'"
+          );
+        }
+      })
+      .catch((err) => {
+        console.log(
+          `---> ERROR from route '/id/:idCollectionModel/:id' - Could not find a document with id ${id} which you want to find it's related ${idCollectionModel} documents: ${err}`
+        );
+      });
+  }
+}
+
+/**
 * More elegant version of "deleteIndexFromArray" function.
 Find all of the documents (from 'collectionToDeleteFrom' collection)with the id in their arrayPropertyName and pulling id from that array property
  * @param {*} id String of a valid _id
@@ -367,16 +481,18 @@ async function addKeyToSender(newMessage, res) {
     });
   const update = { keysQ: updatedKeyNum };
 
-  patchById(senderId, update, false, res);
+  patchOneById(senderId, update, false, res, "addKeyToSender");
 }
 
 /**
- * The function is replacing the keys that are in the update param, to the values in the update param.
+ * An async function that update the document with the content of the update param.
  * @param {*} id The id of the doc we want to update
  * @param {*} update The JSON object with the update info
  * @param {*} res In order to allow a response
+ * @param {*} funcCalledFrom String of the name of the function that called that function.
+ * @return {Promise} with the updated doc
  */
-async function patchById(id, update, isResEnd, res) {
+async function patchOneById(id, update, isResEnd, res, funcCalledFrom) {
   let theCollectionModel = collectionModel;
   let theCollectionName = collection;
   const updateFirstKey = Object.entries(update)[0][0];
@@ -409,9 +525,9 @@ async function patchById(id, update, isResEnd, res) {
     })
     .catch((err) => {
       console.log(
-        `----> ERROR from patchById function - didn't update the ${collection} document with id ${id} with the update ${JSON.stringify(
+        `----> ERROR from patchOneById function - didn't update the ${collection} document with id ${id} with the update ${JSON.stringify(
           update
-        )} : ${err}`
+        )}. The function was called from the function - ${funcCalledFrom} : ${err}`
       );
       //FIXME:res.send(`${err}`);
     });
@@ -596,7 +712,7 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
 
             //Changing the 'to' value of the new message, to be the id of the new unassigned user and not the original Map
             const toUpdated = { to: addressyId };
-            doc = await patchById(doc._id, toUpdated, false, res);
+            doc = await patchOneById(doc._id, toUpdated, false, res);
           }
 
           const update = {
@@ -606,7 +722,7 @@ async function postDoc(newDocContent, theCollectionModel, isResEnd, res) {
           };
 
           //Adding the adressy _id to the lastTenGiftedArr property of the sender
-          await patchById(senderId, update, false, res);
+          await patchOneById(senderId, update, false, res);
 
           addKeyToSender(doc);
 
