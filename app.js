@@ -94,23 +94,22 @@ router1
       });
   });
 
+// the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
+//For example: collection = messages, idCollectionModel = User, id = someID. --> The route will return all the messages of the user with the ID param
+// ??? How to query for documents which have an array paroperty with a combination of a few values, *no metter the value's order*?
 // "/id/:idCollectionModel/:id" route
 router1
   .route("/id/:idCollectionModel/:id")
   // Patch - Update a document
   .patch((req, res) => {
-    getPatchDeleteById("update", req, res);
+    getPatchDeleteByIdOrPropertyQuery("update", req, res, "id");
   })
-  // GET document by id.
-  // the collection param determines the type of the required documents. The idCollectionModel param determines the type of the ID that we require the documets of. If the idCollectionModel is "n", it means that the ID param is the ID of the required document. Otherwise, the route will return all of the collection param documents, of the document with the ID param, and the idCollectionModel param will tell us the collection of that ID param.
-  //For example: collection = messages, idCollectionModel = User, id = someID. --> The route will return all the messages of the user with the ID param
-  // ??? How to query for documents which have an array paroperty with a combination of a few values, *no metter the value's order*?
   .get((req, res) => {
-    getPatchDeleteById("get", req, res);
+    getPatchDeleteByIdOrPropertyQuery("get", req, res, "id");
   })
   // Delete document by id
   .delete((req, res) => {
-    getPatchDeleteById("delete", req, res);
+    getPatchDeleteByIdOrPropertyQuery("delete", req, res, "id");
   });
 
 // "/propertyQuery" route
@@ -120,92 +119,317 @@ router1
 //In order to query the documents which contain a specific value in one of their array propertys, all that is needed is to write the name of the array property, then = sign and then the value that we want the array to contain
 //In order to query that but with multiple values we want the array to contain, that would be the format: arrayPropertyName[]=val1&arrayPropertyName[]=val2&arrayPropertyName[]=val3
 router1
-  .route("/propertyQuery")
+  .route("/propertyQuery/:propertyQueryCollectionModel")
   //GET document by property
   .get((req, res) => {
-    let propertyQuery = req.query;
-    let conditionVal = "";
-
-    propertyQuery = adjustQueryConditions(propertyQuery);
-    propertyQuery = adjustQueryIdsArrays(propertyQuery);
-
-    // Document's get query
-    documents = collectionModel
-      .find(propertyQuery)
-      .then((doc) => {
-        console.log(
-          `----> Yay! Here are the documents that fit the query ${JSON.stringify(
-            propertyQuery
-          )} of ${collection} collection: ${doc}`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with getting the documents that feet the property query: ${propertyQuery} of ${collection}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    getPatchDeleteByIdOrPropertyQuery("get", req, res, "propertyQuery");
   })
   // Delete document by property query
   .delete((req, res) => {
-    propertyQuery = req.query;
-
-    propertyQuery = adjustQueryConditions(propertyQuery);
-    propertyQuery = adjustQueryIdsArrays(propertyQuery);
-
-    // Document's delliting query
-    document = collectionModel
-      .deleteMany(propertyQuery)
-      .then((doc) => {
-        console.log(
-          `----> Yay! The documents that feet the propertyQuery ${JSON.stringify(
-            propertyQuery
-          )} of ${collection} collection was deleted: ${JSON.stringify(doc)}`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with deliting the document that feet the propertyQuery ${propertyQuery} of ${collection}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    getPatchDeleteByIdOrPropertyQuery("delete", req, res, "propertyQuery");
   })
   .patch((req, res) => {
-    propertyQuery = req.query;
-    const update = req.body;
-
-    propertyQuery = adjustQueryConditions(propertyQuery);
-    propertyQuery = adjustQueryIdsArrays(propertyQuery);
-
-    //FIXME:
-    console.log(`propertyQuery: ${propertyQuery} of ${collection} collection`);
-    // Document creation
-    document = collectionModel
-      .findOneAndUpdate(propertyQuery, update, {
-        new: true,
-        runValidators: true,
-      })
-      .then((doc) => {
-        console.log(
-          `----> Yay! The update - ${JSON.stringify(
-            update
-          )} was added to a ${collection} document that feet the propertyQuery ${JSON.stringify(
-            propertyQuery
-          )} of ${collection}: ${doc}`
-        );
-        res.send("Done");
-      })
-      .catch((err) => {
-        console.log(
-          `----> ERROR with updating a ${collection} document that feet the propertyQuery ${propertyQuery}: ${err}`
-        );
-        res.send(`${err}`);
-      });
+    getPatchDeleteByIdOrPropertyQuery("update", req, res, "propertyQuery");
   });
 
 ////////// CONTROLERS ///////////
+
+/**
+ * async function that in case of idCollectionModel param which is "n" it will get/delete/update the document with the id param, and in case of idCollectionModel param which is a collection model name, it will get/delete/update all the documents from the type of the collection param, of the document with the id param which is from the idCollectionModel param.
+ * @param {String} getDeleteOrUpdate "get"/"delete"/"update"
+ * @param {Object} req
+ * @param {Object} res
+ */
+async function getPatchDeleteByIdOrPropertyQuery(
+  getDeleteOrUpdate,
+  req,
+  res,
+  byWhat
+) {
+  let bywhatCollectionModel = "";
+  let bywhatVal = "";
+  let getOneByBywhat = "";
+  let deleteOneByBywhat = "";
+  let updateOneByBywhat = "";
+  if (byWhat == "id") {
+    bywhatCollectionModel = req.params.idCollectionModel;
+    bywhatVal = mongoose.Types.ObjectId(req.params.id);
+    getOneByBywhat = getOneById;
+    deleteOneByBywhat = deleteOneById;
+    patchOneByBywhat = patchOneById;
+  } else if ((byWhat = "propertyQuery")) {
+    bywhatCollectionModel = req.params.propertyQueryCollectionModel;
+    bywhatVal = req.query;
+    getOneByBywhat = getOneByPropertyQuery;
+    deleteOneByBywhat = deleteOneByPropertyQuery;
+    patchOneByBywhat = patchOneByPropertyQuery;
+  }
+
+  //The one document with the ID param
+  if (bywhatCollectionModel == "n") {
+    if (getDeleteOrUpdate == "get") {
+      // Document's get query
+      getOneByBywhat(
+        bywhatVal,
+        res,
+        collectionModel,
+        "getPatchDeleteByIdOrPropertyQuery - First call of getOnwById"
+      );
+    } else if (getDeleteOrUpdate == "update") {
+      //Update by ID
+      let update = req.body;
+      patchOneByBywhat(
+        bywhatVal,
+        update,
+        res,
+        collectionModel,
+        "getPatchDeleteByPropertyQuery - First call of patchOneById"
+      );
+      //Delete by ID
+    } else if (getDeleteOrUpdate == "delete") {
+      deleteOneByBywhat(
+        bywhatVal,
+        res,
+        collectionModel,
+        "'getPatchDeleteByIdOrPropertyQuery' function - First call of deleteOneById"
+      );
+    }
+    res.end("Done");
+    //else -> The idCollectionModel param is a collection name
+  } else {
+    //TODO: check the value of idCollectionModel before the eval
+
+    //Finding the specific document with the ID param, of the idCollectionModel type, that we want to get/delete/update all of it's "children's documents" of the collectionModel type
+
+    const doc = await eval(bywhatCollectionModel).findOne(bywhatVal);
+
+    if (bywhatCollectionModel == "User") {
+      //Get/Patch/Delete all the messages of a specific user
+      if (collectionModel == Message) {
+        console.log(
+          `----> YAY! Here are all the messages of the user with the ${byWhat}: ${
+            byWhat == "id" ? bywhatVal : JSON.stringify(bywhatVal)
+          } that you wanted to ${getDeleteOrUpdate}:`
+        );
+
+        doc.conversationsArr.forEach((conId) => {
+          Conversation.findById(mongoose.Types.ObjectId(conId))
+            .then((conDoc) => {
+              conDoc.messagesIndexesArr.forEach((mesId) => {
+                if (getDeleteOrUpdate == "get") {
+                  getOneById(
+                    mesId,
+                    res,
+                    collectionModel,
+                    "getPatchDeleteByPropertyQuery - Second call of patchOneById"
+                  );
+                } else if (getDeleteOrUpdate == "delete") {
+                  deleteOneById(
+                    mesId,
+                    res,
+                    collectionModel,
+                    "'getPatchDeleteByIdOrPropertyQuery' function - Second call of deleteOneById"
+                  );
+                } else if (getDeleteOrUpdate == "update") {
+                  let update = req.body;
+                  patchOneById(
+                    mesId,
+                    update,
+                    false,
+                    res,
+                    "getPatchDeleteByIdOrPropertyQuery - Second call of patchOneById"
+                  );
+                }
+              });
+            })
+            .catch((err) => {
+              console.log(
+                `----> ERROR from "getPatchDeleteByIdOrPropertyQuery" function - ${getDeleteOrUpdate} all messages of a user by ${byWhat} - problem with finding the conversation with id ${conId} of user: ${JSON.stringify(
+                  doc
+                )}. The error: ${err}`
+              );
+              res.end(err);
+            });
+        });
+        res.end("Done");
+      }
+      //Get/Patch/Delete all the conversations of a specific user
+      else if (collectionModel == Conversation) {
+        console.log(
+          `----> YAY! Here are all the conversations of the user with the ${byWhat}: ${
+            byWhat == "id" ? bywhatVal : JSON.stringify(bywhatVal)
+          } that you wanted to ${getDeleteOrUpdate}:`
+        );
+        doc.conversationsArr.forEach((conId) => {
+          if (getDeleteOrUpdate == "get") {
+            getOneById(
+              conId,
+              res,
+              collectionModel,
+              "getPatchDeleteByPropertyQuery - Third call of patchOneById"
+            );
+          } else if (getDeleteOrUpdate == "delete") {
+            deleteOneById(
+              conId,
+              res,
+              collectionModel,
+              "'getPatchDeleteByIdOrPropertyQuery' function - Third call of deleteOneById"
+            );
+          } else if (getDeleteOrUpdate == "update") {
+            let update = req.body;
+            patchOneById(
+              conId,
+              update,
+              false,
+              res,
+              "getPatchDeleteByIdOrPropertyQuery - Third call of patchOneById"
+            );
+          }
+        });
+        res.end("Done");
+      }
+    } else if (bywhatCollectionModel == "Conversation") {
+      //Get all the messages of a specific conversation
+      if (collectionModel == Message) {
+        console.log(
+          `----> YAY! Here are all the messages of the conversation with the ${byWhat}: ${
+            byWhat == "id" ? bywhatVal : JSON.stringify(bywhatVal)
+          } that you wanted to ${getDeleteOrUpdate}:`
+        );
+
+        doc.messagesIndexesArr.forEach((mesId) => {
+          if (getDeleteOrUpdate == "get") {
+            getOneById(
+              mesId,
+              res,
+              collectionModel,
+              "getPatchDeleteByPropertyQuery - Fourth call of patchOneById"
+            );
+          } else if (getDeleteOrUpdate == "delete") {
+            deleteOneById(
+              mesId,
+              res,
+              collectionModel,
+              "'getPatchDeleteByIdOrPropertyQuery' function - Fourth call of deleteOneById"
+            );
+          } else if (getDeleteOrUpdate == "update") {
+            let id = req.params.id;
+            let update = req.body;
+            patchOneById(
+              mesId,
+              update,
+              false,
+              res,
+              "getPatchDeleteByIdOrPropertyQuery - Fourth call of patchOneById"
+            );
+          }
+        });
+      }
+      res.end("Done");
+    } else {
+      console.log(
+        `${
+          byWhat == "id"
+            ? "/id/:idCollectionModel/:id"
+            : "/propertyQuery/:propertyQueryCollectionModel"
+        } - idCollectionModel param must be 'User' or 'Conversation'`
+      );
+    }
+  }
+}
+
+async function patchOneByPropertyQuery(
+  propertyQuery,
+  update,
+  res,
+  theCollectionModel,
+  funcCalledFrom
+) {
+  propertyQuery = adjustQueryConditions(propertyQuery);
+  propertyQuery = adjustQueryIdsArrays(propertyQuery);
+
+  //FIXME:
+  console.log(`propertyQuery: ${propertyQuery} of ${collection} collection`);
+  // Document creation
+  document = theCollectionModel
+    .findOneAndUpdate(propertyQuery, update, {
+      new: true,
+      runValidators: true,
+    })
+    .then((doc) => {
+      console.log(
+        `----> Yay! The update - ${JSON.stringify(
+          update
+        )} was added to a ${collection} document that feet the propertyQuery ${JSON.stringify(
+          propertyQuery
+        )} of ${collection}: ${doc}`
+      );
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR with updating a ${collection} document that feet the propertyQuery ${propertyQuery}. The function was called from the function - ${funcCalledFrom}: ${err}`
+      );
+      res.send(`${err}`);
+    });
+}
+
+async function deleteOneByPropertyQuery(
+  propertyQuery,
+  res,
+  theCollectionModel,
+  funcCalledFrom
+) {
+  propertyQuery = req.query;
+
+  propertyQuery = adjustQueryConditions(propertyQuery);
+  propertyQuery = adjustQueryIdsArrays(propertyQuery);
+
+  // Document's delliting query
+  document = theCollectionModel
+    .deleteMany(propertyQuery)
+    .then((doc) => {
+      console.log(
+        `----> Yay! The documents that feet the propertyQuery ${JSON.stringify(
+          propertyQuery
+        )} of ${collection} collection was deleted: ${JSON.stringify(doc)}`
+      );
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR with deliting the document that feet the propertyQuery ${propertyQuery} of ${collection}: ${err}`
+      );
+      res.send(`${err}`);
+    });
+}
+
+async function getOneByPropertyQuery(
+  propertyQuery,
+  res,
+  theCollectionModel,
+  funcCalledFrom
+) {
+  let conditionVal = "";
+
+  propertyQuery = adjustQueryConditions(propertyQuery);
+  propertyQuery = adjustQueryIdsArrays(propertyQuery);
+
+  // Document's get query
+  documents = theCollectionModel
+    .find(propertyQuery)
+    .then((doc) => {
+      console.log(
+        `----> Yay! Here are the documents that fit the query ${JSON.stringify(
+          propertyQuery
+        )} of ${collection} collection: ${doc}`
+      );
+    })
+    .catch((err) => {
+      console.log(
+        `----> ERROR with getting the documents that feet the property query: ${propertyQuery} of ${collection}: ${err}`
+      );
+      res.send(`${err}`);
+    });
+}
 
 /**
  * Async func that GET (Print and return) the document with the id param of theCollectionModel param
@@ -216,11 +440,10 @@ router1
  * @param {*} funcCalledFrom String of a the function name that called the getOne by id function
  */
 async function getOneById(id, res, theCollectionModel, funcCalledFrom) {
-  Documents = await theCollectionModel
+  let document = await theCollectionModel
     .findById(id)
     .then((doc) => {
       console.log(`----> Yay! the document with id ${id}: ${doc}`);
-      res.send("Done");
       return doc;
     })
     .catch((err) => {
@@ -247,7 +470,6 @@ async function deleteOneById(id, res, theCollectionModel, funcCalledFrom) {
       // Delete the document id from it's array in other collection
       deleteIndexFromArray(doc);
       console.log(`----> Yay! The document with id ${doc.id} was deleted`);
-      res.send("Done");
       return doc;
     })
     .catch((err) => {
@@ -257,177 +479,6 @@ async function deleteOneById(id, res, theCollectionModel, funcCalledFrom) {
       res.send(`${err}`);
     });
   return document;
-}
-
-async function getPatchDeleteById(getDeleteOrUpdate, req, res) {
-  let idCollectionModel = req.params.idCollectionModel;
-  let id = req.params.id;
-  //The one document with the ID param
-  if (idCollectionModel == "n") {
-    if (getDeleteOrUpdate == "get") {
-      // Document's get query
-      getOneById(
-        id,
-        res,
-        collectionModel,
-        "getPatchDeleteById - First call of getOnwById"
-      );
-    } else if (getDeleteOrUpdate == "update") {
-      //Update by ID
-      let update = req.body;
-      patchOneById(
-        id,
-        update,
-        true,
-        res,
-        "getPatchDeletById - First call of patchOneById"
-      );
-      //Delete by ID
-    } else if (getDeleteOrUpdate == "delete") {
-      deleteOneById(
-        id,
-        res,
-        collectionModel,
-        "'getPatchDeleteById' function - First call of deleteOneById"
-      );
-    }
-    //else -> The idCollectionModel param is a collection name
-  } else {
-    //TODO: check the value of idCollectionModel before the eval
-
-    //Finding the specific document with the ID param, of the idCollectionModel type, that we want to get/delete/update all of it's "children's documents" of the collectionModel type
-    eval(idCollectionModel)
-      .findById(mongoose.Types.ObjectId(id))
-      .then((doc) => {
-        if (idCollectionModel == "User") {
-          //Get/Patch/Delete all the messages of a specific user
-          if (collectionModel == Message) {
-            console.log(
-              `----> YAY! Here are all the messages of the user with the ID: ${id} that you wanted to ${getDeleteOrUpdate}:`
-            );
-
-            doc.conversationsArr.forEach((conId) => {
-              Conversation.findById(mongoose.Types.ObjectId(conId))
-                .then((conDoc) => {
-                  conDoc.messagesIndexesArr.forEach((mesId) => {
-                    if (getDeleteOrUpdate == "get") {
-                      getOneById(
-                        mesId,
-                        res,
-                        collectionModel,
-                        "getPatchDeletById - Second call of patchOneById"
-                      );
-                    } else if (getDeleteOrUpdate == "delete") {
-                      deleteOneById(
-                        mesId,
-                        res,
-                        collectionModel,
-                        "'getPatchDeleteById' function - Second call of deleteOneById"
-                      );
-                    } else if (getDeleteOrUpdate == "update") {
-                      let update = req.body;
-                      patchOneById(
-                        mesId,
-                        update,
-                        true,
-                        res,
-                        "getPatchDeleteById - Second call of patchOneById"
-                      );
-                    }
-                  });
-                })
-                .catch((err) => {
-                  console.log(
-                    `----> ERROR from "getPatchDeleteById" function - DELETE all messages of a user by id - problem with finding the conversation with id ${conId} of user: ${JSON.stringify(
-                      doc
-                    )}. The error: ${err}`
-                  );
-                  res.end(err);
-                });
-            });
-            res.end("Done");
-          }
-          //Get/Patch/Delete all the conversations of a specific user
-          else if (collectionModel == Conversation) {
-            console.log(
-              `----> YAY! Here are all the conversations of the user with the ID: ${id} that you wanted to ${getDeleteOrUpdate}:`
-            );
-            doc.conversationsArr.forEach((conId) => {
-              if (getDeleteOrUpdate == "get") {
-                getOneById(
-                  conId,
-                  res,
-                  collectionModel,
-                  "getPatchDeletById - Third call of patchOneById"
-                );
-              } else if (getDeleteOrUpdate == "delete") {
-                deleteOneById(
-                  conId,
-                  res,
-                  collectionModel,
-                  "'getPatchDeleteById' function - Third call of deleteOneById"
-                );
-              } else if (getDeleteOrUpdate == "update") {
-                let update = req.body;
-                patchOneById(
-                  conId,
-                  update,
-                  true,
-                  res,
-                  "getPatchDeleteById - Third call of patchOneById"
-                );
-              }
-            });
-            res.end("Done");
-          }
-        } else if (idCollectionModel == "Conversation") {
-          //Get all the messages of a specific conversation
-          if (collectionModel == Message) {
-            Conversation.findById(mongoose.Types.ObjectId(id)).then(
-              (conDoc) => {
-                conDoc.messagesIndexesArr.forEach((mesId) => {
-                  if (getDeleteOrUpdate == "get") {
-                    getOneById(
-                      medId,
-                      res,
-                      collectionModel,
-                      "getPatchDeletById - Fourth call of patchOneById"
-                    );
-                  } else if (getDeleteOrUpdate == "delete") {
-                    deleteOneById(
-                      mesId,
-                      res,
-                      collectionModel,
-                      "'getPatchDeleteById' function - Fourth call of deleteOneById"
-                    );
-                  } else if (getDeleteOrUpdate == "update") {
-                    let id = req.params.id;
-                    let update = req.body;
-                    patchOneById(
-                      mesId,
-                      update,
-                      true,
-                      res,
-                      "getPatchDeleteById - Fourth call of patchOneById"
-                    );
-                  }
-                });
-              }
-            );
-            res.end("Done");
-          }
-        } else {
-          console.log(
-            "---> ERROR from route '/id/:idCollectionModel/:id' - idCollectionModel param must be 'User' or 'Conversation'"
-          );
-        }
-      })
-      .catch((err) => {
-        console.log(
-          `---> ERROR from route '/id/:idCollectionModel/:id' - Could not find a document with id ${id} which you want to find it's related ${idCollectionModel} documents: ${err}`
-        );
-      });
-  }
 }
 
 /**
