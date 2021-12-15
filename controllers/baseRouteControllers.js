@@ -8,84 +8,6 @@ const Conversation = require("../models/conversationsModel");
 
 const fewRoutesControllers = require("./fewRoutesControllers");
 const byIdRoutesControllers = require("./byIdRouteControllers");
-/**
- * Takes the newDocument and add it's _id to the property (of other collection's document) that holds the id of that type of documents
- * @param {Document object} newDocument
- * @param {model object} theCollectionModel
- * @param {response object}
- */
-exports.addIndexToArray = function (newDocument, theCollectionModel, res) {
-  try {
-    if (theCollectionModel == Message) {
-      Conversation.findOneAndUpdate(
-        // Filter
-        {
-          //Finding the conversation that the message belongs to.The $elemMatch operator matches documents that contain an array field with at least one element that matches all the specified query criteria.
-
-          $and: [
-            { conversationalistsIndexesArr: { $eq: newDocument.from } },
-            { conversationalistsIndexesArr: { $eq: newDocument.to } },
-          ],
-        },
-        //Update
-        {
-          //push the message id to it's messagesIndexesArr
-          $push: { messagesIndexesArr: newDocument._id },
-        },
-        // Options
-        {
-          new: true,
-        }
-      )
-        .then((doc) => {
-          if (doc == null) {
-            let newConversationContent = {
-              messagesIndexesArr: [newDocument._id],
-              conversationalistsIndexesArr: [newDocument.from, newDocument.to],
-            };
-            postDoc(newConversationContent, Conversation, true, res);
-            return;
-          }
-
-          console.log(
-            `----> Yay! The ID ${newDocument._id} of messages colection  was added to the next messagesIndexesArr property of a conversations document : ${doc}`
-          );
-        })
-        .catch((err) => {
-          console.log(
-            `----> ERROR from addIndexToArray function when collection = messages: ${err}`
-          );
-        });
-    } else if (theCollectionModel == Conversation) {
-      //Finding the two users who are the conversationalists of that conversation and push conversation id to it's conversationsArr
-      //FIXME: First and Second users downhere are the sa,e and need to be one function
-      //First user - 'from' user
-      User.findByIdAndUpdate(
-        newDocument.conversationalistsIndexesArr[0],
-        { $push: { conversationsArr: newDocument._id } },
-        { new: true }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument.id} of conversations collection was added to the next  conversationsArr property of a user document: ${doc}`
-        );
-      });
-      //Seccond users - 'to' user
-      User.findByIdAndUpdate(
-        newDocument.conversationalistsIndexesArr[1],
-        { $push: { conversationsArr: newDocument._id } },
-        { new: true }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument.id} of conversations collection was added to the next user document's conversationsArr property: ${doc}`
-        );
-      });
-    }
-  } catch (err) {
-    console.log(
-      `-----> ERROR with function "addIndexToArray" when collection = conversations: ${err}`
-    );
-  }
-};
 
 /**
  *  Create new document with the 'newDocContent' of 'theCollectionModel' collection. if the addressy is unassigned. If the addressy is assigned but the sender does'nt have a conversation with him yet (it is their first message), postDoc create the new conversation.
@@ -264,6 +186,99 @@ exports.youGotMessageSMS = async function (reqBody) {
       .then((message) => console.log(message.sid));
   } catch (err) {
     console.log(`---> Error from function "youGotMesageSMS": ${err}`);
+  }
+};
+
+/**
+ * Takes the newDocument and add it's _id to the property (of other collection's document) that holds the id of that type of documents
+ * @param {Document object} newDocument
+ * @param {model object} theCollectionModel
+ * @param {response object}
+ */
+exports.addIndexToArray = async function (
+  newDocument,
+  theCollectionModel,
+  res
+) {
+  try {
+    if (theCollectionModel == Message) {
+      Conversation.findOneAndUpdate(
+        // Filter
+        {
+          //Finding the conversation that the message belongs to.The $elemMatch operator matches documents that contain an array field with at least one element that matches all the specified query criteria.
+
+          $and: [
+            { conversationalistsIndexesArr: { $eq: newDocument.from } },
+            { conversationalistsIndexesArr: { $eq: newDocument.to } },
+          ],
+        },
+        //Update
+        {
+          //push the message id to it's messagesIndexesArr
+          $push: { messagesIndexesArr: newDocument._id },
+        },
+        // Options
+        {
+          new: true,
+        }
+      )
+        .then((doc) => {
+          if (doc == null) {
+            let newConversationContent = {
+              messagesIndexesArr: [newDocument._id],
+              conversationalistsIndexesArr: [newDocument.from, newDocument.to],
+            };
+            postDoc(newConversationContent, Conversation, true, res);
+            return;
+          }
+
+          console.log(
+            `----> Yay! The ID ${newDocument._id} of messages colection  was added to the next messagesIndexesArr property of a conversations document : ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from addIndexToArray function when collection = messages: ${err}`
+          );
+        });
+    } else if (theCollectionModel == Conversation) {
+      //Finding the two users who are the conversationalists of that conversation and push conversation id to it's conversationsArr
+      //FIXME: First and Second users downhere are the sa,e and need to be one function
+      //First user - 'from' user
+      User.findByIdAndUpdate(
+        newDocument.conversationalistsIndexesArr[0],
+        { $push: { conversationsArr: newDocument._id } },
+        { new: true }
+      )
+        .then((doc) => {
+          console.log(
+            `----> Yay! The ID ${newDocument.id} of conversations collection was added to the next  conversationsArr property of a user document: ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from addIndexToArray function when collection = Conversation. First user. the error: ${err}`
+          );
+        });
+      //Seccond users - 'to' user
+      User.findByIdAndUpdate(
+        newDocument.conversationalistsIndexesArr[1],
+        { $push: { conversationsArr: newDocument._id } },
+        { new: true }
+      )
+        .then((doc) => {
+          console.log(
+            `----> Yay! The ID ${newDocument.id} of conversations collection was added to the next user document's conversationsArr property: ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from addIndexToArray function when collection = Conversation. First user. the error: ${err}`
+          );
+        });
+    }
+  } catch (err) {
+    console.log(`-----> ERROR with function "addIndexToArray": ${err}`);
   }
 };
 

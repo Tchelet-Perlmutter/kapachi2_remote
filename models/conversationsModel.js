@@ -7,9 +7,6 @@ const conversationSchema = new mongoose.Schema({
   messagesIndexesArr: {
     type: Array,
   },
-  test: {
-    type: Array,
-  },
   //The converationalists of the conversation = their IDs
   conversationalistsIndexesArr: {
     type: Array,
@@ -24,13 +21,13 @@ const conversationSchema = new mongoose.Schema({
   },
 });
 
-conversationSchema.index(
-  {
-    "test.one": 1,
-    "test.two": 1,
-  },
-  { unique: true }
-);
+// conversationSchema.index(
+//   {
+//     "test.one": 1,
+//     "test.two": 1,
+//   },
+//   { unique: true }
+// );
 
 /**
  * Check if the conversationalistsIndexesArr is valid: Two different IDs of an existing users
@@ -52,7 +49,39 @@ async function isValidConversationalists(conversationalistsIndexesArr) {
       return false;
     }
   }
+  if (
+    (await isNewConversationalistsIndexes(conversationalistsIndexesArr)) ==
+    false
+  ) {
+    return false;
+  }
+
   return true;
+}
+
+async function isNewConversationalistsIndexes(conversationalistsIndexesArray) {
+  const isNew = await Conversation.findOne({
+    $and: [
+      {
+        conversationalistsIndexesArr: conversationalistsIndexesArray[0],
+      },
+      {
+        conversationalistsIndexesArr: conversationalistsIndexesArray[1],
+      },
+    ],
+  }).then((doc) => {
+    if (doc != null) {
+      console.log(
+        `----> ERROR from isNewConversationalistsIndexes function - There is allready a conversation with those two conversationalists: ${conversationalistsIndexesArray}. That conversation: ${JSON.stringify(
+          doc
+        )}`
+      );
+      return false;
+    } else {
+      return true;
+    }
+  });
+  return isNew;
 }
 
 /**
