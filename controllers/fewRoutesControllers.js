@@ -32,11 +32,17 @@ exports.deleteIndexFromArray = function (newDocument, collection) {
         {
           new: true,
         }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument.id} of colection ${collection} was deleted from the next document's relevant array property: ${doc}`
-        );
-      });
+      )
+        .then((doc) => {
+          console.log(
+            `----> Yay! The ID ${newDocument.id} of colection ${collection} was deleted from the next document's relevant array property: ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from deleteIndexFromArray function when collection = messages. the error: ${err}`
+          );
+        });
     } else if (collection == "conversations") {
       //Finding the two users who are the conversationalists of that conversation and push conversation id to it's conversationsArr
       //FIXME: First and Second users downhere are the sa,e and need to be one function
@@ -45,21 +51,33 @@ exports.deleteIndexFromArray = function (newDocument, collection) {
         newDocument.conversationalistsIndexesArr[0],
         { $pull: { conversationsArr: newDocument._id } },
         { new: true }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument._id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
-        );
-      });
+      )
+        .then((doc) => {
+          console.log(
+            `----> Yay! The ID ${newDocument._id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from deleteIndexFromArray function when collection = conversations. First user the error: ${err}`
+          );
+        });
       //Seccond users
       User.findByIdAndUpdate(
         newDocument.conversationalistsIndexesArr[1],
         { $pull: { conversationsArr: newDocument._id } },
         { new: true }
-      ).then((doc) => {
-        console.log(
-          `----> Yay! The ID ${newDocument.id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
-        );
-      });
+      )
+        .then((doc) => {
+          console.log(
+            `----> Yay! The ID ${newDocument.id} of conversations collection was deleted from the next user document's conversationsArr property: ${doc}`
+          );
+        })
+        .catch((err) => {
+          console.log(
+            `----> ERROR from deleteIndexFromArray function when collection = conversations. Second user the error: ${err}`
+          );
+        });
     }
   } catch (err) {
     console.log(`-----> ERROR with function "deleteIndexFromArray": ${err}`);
