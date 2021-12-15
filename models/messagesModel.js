@@ -19,7 +19,6 @@ const messageSchema = new mongoose.Schema({
     },
   },
   to: {
-    //FIXME:
     type: {},
     required: [true, "A message should have a 'to' propery"],
     trim: true,
