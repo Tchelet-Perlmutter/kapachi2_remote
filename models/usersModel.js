@@ -1,4 +1,5 @@
-mongoose = require("mongoose");
+const mongoose = require("mongoose");
+const modelsControllers = require("../Controllers/modelsControllers");
 
 //user schema
 const userSchema = new mongoose.Schema({
@@ -9,7 +10,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function (phoneNum) {
-        return isValidPhone(phoneNum);
+        return modelsControllers.isValidPhone(phoneNum);
       },
     },
   },
@@ -54,6 +55,16 @@ const userSchema = new mongoose.Schema({
     type: Array,
     maxlength: 10,
   },
+  savedGroupsIdArr: {
+    type: Array,
+    validate: {
+      validator: function (savedGroupsIdArr) {
+        return modelsControllers.isValidGroups(savedGroupsIdArr);
+      },
+      message:
+        "savedGroupsIdArr must contain valid mongoDB _ids of other groups",
+    },
+  },
 });
 
 /**
@@ -73,29 +84,6 @@ const userSchema = new mongoose.Schema({
 //       });
 //   }
 // }
-
-/**
- * Validate international phone numbers based on ITU-T standards.
- * @param {*} phoneNum
- */
-function isValidPhone(phoneNum) {
-  if (phoneNum.length == 13) {
-    if (phoneNum.match(/^\+(?:[0-9] ?){6,14}[0-9]$/)) {
-      console.log(`===84`);
-      return true;
-    } else {
-      console.log(
-        `---> ERROR from isValidPhone function - the phone property is not vald - it contains unvalid characters`
-      );
-      return false;
-    }
-  } else {
-    console.log(
-      `---> ERROR from isValidPhone function - the phone property is not valid - it contains more or less then 13 characters`
-    );
-    return false;
-  }
-}
 
 // User model
 const User = mongoose.model("users", userSchema);

@@ -7,17 +7,18 @@ const dotenv = require("dotenv");
 const User = require("./models/usersModel");
 const Message = require("./models/messagesModel");
 const Conversation = require("./models/conversationsModel");
+const Group = require("./models/groupsModel");
 
 const baseRouteControllers = require("./controllers/baseRouteControllers");
 const byIdRouteControllers = require("./controllers/byIdRouteControllers");
 const byPropertyQueryRouteControllers = require("./controllers/byPropertyQueryRouteControllers");
 const fewRoutesControllers = require("./controllers/fewRoutesControllers");
 
-// Connecting config.env file to the env variable by connecting dotenv package to the config.env module
-dotenv.config({ path: "./config.env" });
-
 // Body parse - Middleware that add the body to the request
 app.use(express.json());
+
+// Connecting config.env file to the env variable by connecting dotenv package to the config.env module
+dotenv.config({ path: "./config.env" });
 
 // Copying the DB URI from config.env module
 const DB = process.env.DATABASE;

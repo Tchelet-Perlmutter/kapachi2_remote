@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const User = require("../models/usersModel");
 const Message = require("../models/messagesModel");
 const Conversation = require("../models/conversationsModel");
+const Group = require("../models/groupsModel");
 
 const fewRoutesControllers = require("./fewRoutesControllers");
 
